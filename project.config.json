@@ -1,0 +1,18 @@
+{
+  "packageName": "@xyb-community/anca-vasculitis-workbench",
+  "title": "小脉宝 VasPal · ANCA 相关血管炎患者工作台",
+  "repository": "https://github.com/xyb-openharness-dsh-plugins/anca-vasculitis-workbench",
+  "description": "面向 ANCA 相关血管炎患者与照护者的本机病程资料工作台：ANCA 滴度（PR3/MPO）时间线、复发事件档案、免疫抑制用药版本链、激素副作用分节轨道",
+  "slug": "anca-vasculitis-workbench",
+  "layoutMode": "business-first",
+  "businessWidth": 0.65,
+  "targetUsers": "ANCA 相关血管炎患者本人与家属照护者双主体；覆盖确诊起全病程（诱导/维持治疗、缓解期监测、复发事件、激素副作用管理、长程随访）；支持家属代记与私密内容分级",
+  "scenario": "患者与照护者整理 ANCA 滴度（PR3/MPO）、肌酐与尿检、ESR/CRP 周期化验，复发事件与受累器官记录，免疫抑制与激素用药变更，追踪随访节奏，准备复诊问题",
+  "coreFlow": [
+    "选择本地资料目录并导入或登记 ANCA/肾功能/尿检化验、用药变更与复发事件材料",
+    "核对滴度时间线（引用不判定）、用药版本链、复发事件档案与副作用分节",
+    "查看长程随访日历与趋势，标记症状与待办，生成复诊摘要与问题清单",
+    "家属以代记身份记录随访与照护线索，私密内容分级管理，并把明确任务交给 Desktop 原生 Agent 会话"
+  ],
+  "completion": "患者与照护者确认的资料和滴度时间线、用药版本链、复发事件记录、复诊摘要均保存在明确选择的本机资料目录中；私密内容按 visibility 分级且三出口过滤"
+}

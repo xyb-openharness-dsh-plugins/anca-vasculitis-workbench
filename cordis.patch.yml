@@ -1,0 +1,6 @@
+- insert:
+    - id: anca-vasculitis-workbench-main
+      name: "@xyb-community/anca-vasculitis-workbench"
+      # config.root 指向 Desktop 工作台宿主目录（dshHomePath 由宿主解析）
+      config:
+        root: !!js dshHomePath('anca-vasculitis-workbench')
