@@ -1,6 +1,6 @@
 # 项目规格（SPEC）· 小脉宝 VasPal · ANCA 相关血管炎工作台 · M1 定稿
 
-状态：草案待签（M1 全量）。确认人/日期：**待 G1 签认**。
+状态：M1 定稿，**G1 已签认（2026-10-26）**。签认记录见 [DESIGN-SESSION](DESIGN-SESSION.md) §二。
 判据来源：[DEV-PLAN](DEV-PLAN.md)；证据：[USER-RESEARCH](USER-RESEARCH.md)、[research-notes/medical-constraints.md](../research-notes/medical-constraints.md)、[research-notes/family-landscape.md](../research-notes/family-landscape.md)、[DIFF-MATRIX](DIFF-MATRIX.md)。
 
 ## 一、设计者与研究/场景依据
@@ -127,17 +127,19 @@
 | T6 双主体代记、private 三出口 | `author_role` + 三出口过滤测试 | ACC-02 / ACC-12 |
 | T7 长程随访、零停药、急症不判分诊 | 红线扫描 + 固定提示卡断言 | ACC-02 + `check-wording`（M5） |
 
+**G4（2026-10-26 用户新增）**：手工 + AI 双通道的数据维护更新检查与通过——9 类可写实体 × 2 通道逐项实测、双通道同源（IP9）、拒收零副作用、private 三出口；检查矩阵见 [INTERACTION-DESIGN](INTERACTION-DESIGN.md) §十，验收行 **ACC-32/33/34**；M5 出口首过，V3 真机复跑抽查。
+
 三层验证：V1 `npm run check` + `npm test` + `npm run audit` 无 fail；V2 真机加载；V3 核心业务闭环。详见 [DEV-PLAN](DEV-PLAN.md) 与 [ACCEPTANCE](ACCEPTANCE.md)。
 
 ## 十、风险与未验证
 
-1. **0 访谈**：S01 滴度焦虑、S04 激素副作用、S10 生育/心理为证据缺口；功能线优先级待 G1 显式确认。
+1. **0 访谈**：S01 滴度焦虑、S04 激素副作用、S10 生育/心理为证据缺口；优先级已在 G1 确认（S01/S05 P0，S04 P1，生育/心理不单列场景），后续访谈或组织合作验证后修订。
 2. **指南/监管**：NMPA 批准文件、2021 AAGN 指南卷期页码、2018 EGPA 共识页码未取得（medical-constraints §五）。
 3. **Desktop 能力**：宿主加载、原生会话、Agent 面板均未在本机验证（V2/V3）。
 4. **审计算力**：`npm run audit` 6 项 fail 属 M5/发布期脚手架；M5 前不宣称 V1 全绿。
 5. **试验库**：`research/anca-vasculitis/` 为空（M4）；在 M4 前试验入口显示"未配置"，不显示空结果。
 
-## 十一、我替你定的默认值（G1 一并确认，可回退）
+## 十一、默认值（G1 已确认，2026-10-26；变更走 DESIGN-SESSION 留痕）
 
 | 项 | 默认值 | 依据 |
 | --- | --- | --- |

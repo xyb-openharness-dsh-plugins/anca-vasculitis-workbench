@@ -1,6 +1,6 @@
 # 患者场景清单（SCENARIOS）· ANCA 相关血管炎 · M1 定稿
 
-> 状态：✅ M1 定稿（待 G1 签认）。**0 访谈声明**：本表所有"患者原话"均为公开叙述〔改写〕，不冒充一手引语，来源编号见 [USER-RESEARCH](USER-RESEARCH.md)（E1–E10）。
+> 状态：✅ M1 定稿，**G1 已签认（2026-10-26）**。**0 访谈声明**：本表所有"患者原话"均为公开叙述〔改写〕，不冒充一手引语，来源编号见 [USER-RESEARCH](USER-RESEARCH.md)（E1–E10）。
 >
 > 优先级：P0 = 一期必须；P1 = 一期可后置/二级。每条场景必须能在 [INTERACTION-DESIGN](INTERACTION-DESIGN.md) 找到一条完整路径（IP2 双向覆盖）。
 

@@ -1,6 +1,6 @@
 # 患者主流程（PATIENT-FLOW）· ANCA 相关血管炎 · M1 定稿
 
-> 状态：✅ M1 定稿（与 [INTERACTION-DESIGN](INTERACTION-DESIGN.md) 同批，待 G1 签认）。
+> 状态：✅ M1 定稿，**G1 已签认（2026-10-26）**（与 [INTERACTION-DESIGN](INTERACTION-DESIGN.md) 同批）。
 > 口径：主流程只描述"患者/家属实际会走的路"，不等于页面树；页面树见 INTERACTION-DESIGN §五。
 
 ## 一、主流程（首次进入 → 日常 → 复诊 → 回顾）

@@ -2,7 +2,7 @@
 
 面向 ANCA 相关血管炎患者与照护者的本机病程资料工作台：ANCA 滴度（PR3/MPO）时间线、复发事件档案、免疫抑制用药版本链、激素副作用分节轨道
 
-这是接入骨架；M1 三路调研与 SPEC/交互路径文档已完成，**尚未实现真实业务**（待 G1 签认）。初始化后先将 [项目设计提示词](docs/DESIGN-PROMPT.md) 交给当前Agent；它应展示实际路径并以已有用户/场景/流程素材对齐设计者、研究与取舍原则。癌种项目另有 [完整专用提示词](prompts/NEW-CANCER-WORKBENCH.md)。需求见 [BRIEF](docs/BRIEF.md)，规格见 [SPEC](docs/SPEC.md)，任务见 [TASKS](docs/TASKS.md)，进度判据见 [DEV-PLAN](docs/DEV-PLAN.md)；先读 [AGENTS](AGENTS.md)。CLI输出交接与首问，实际对话由Agent接续。
+这是接入骨架；M1 三路调研与 SPEC/交互路径文档已完成并**通过 G1 签认（2026-10-26）**，尚未实现真实业务（当前阶段 M2 原型）。初始化后先将 [项目设计提示词](docs/DESIGN-PROMPT.md) 交给当前Agent；它应展示实际路径并以已有用户/场景/流程素材对齐设计者、研究与取舍原则。癌种项目另有 [完整专用提示词](prompts/NEW-CANCER-WORKBENCH.md)。需求见 [BRIEF](docs/BRIEF.md)，规格见 [SPEC](docs/SPEC.md)，任务见 [TASKS](docs/TASKS.md)，进度判据见 [DEV-PLAN](docs/DEV-PLAN.md)；先读 [AGENTS](AGENTS.md)。CLI输出交接与首问，实际对话由Agent接续。
 
 ## 疾病概要
 

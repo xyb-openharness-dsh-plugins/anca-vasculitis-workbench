@@ -1,8 +1,8 @@
 # 实施任务与当前交接
 
-规格版本：SPEC M1 定稿（2026-10-26，待 G1）· 原型 hash：未产生（M2）· 当前分支 `main` · 包版本 `0.1.0`
+规格版本：SPEC M1 定稿（2026-10-26，G1 已签认）· 原型 hash：未产生（M2）· 当前分支 `main` · 包版本 `0.1.0`
 
-> 当前阶段：**M1 产出完成，待 G1 签认**。判据与进度以 [DEV-PLAN](DEV-PLAN.md) 为准；本表只列实施任务。
+> 当前阶段：**G1 已签认（2026-10-26），进入 M2 原型**。判据与进度以 [DEV-PLAN](DEV-PLAN.md) 为准；本表只列实施任务。
 
 | ID | 业务单元 | 前置依赖 | 拥有文件/模块 | 实现/检查要求 | 证据 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -27,12 +27,14 @@
 
 ## 下一步具体动作 / 命令
 
-1. 用户做 **G1 签认**（逐条确认 [DESIGN-SESSION](DESIGN-SESSION.md) §一 DESIGN-01–11）。
-2. 签认后进入 M2：按 [INTERACTION-DESIGN](INTERACTION-DESIGN.md) §二/§五 构建 `prototypes/v0.2/` 四件套；先独立评审，再 HVT X1–X4。
+1. M2：按 [INTERACTION-DESIGN](INTERACTION-DESIGN.md) §二/§五 构建 `prototypes/v0.2/` 四件套；先独立评审（DESIGN-REVIEW），再 HVT X1–X4，交 G2 签认。
+2. G4（用户新增）在 **M5 出口**执行：手工 + AI 双通道数据维护更新检查（INTERACTION-DESIGN §十，ACC-32–34）；未过不进 M6。
 3. 命令：`npm run check` / `npm test`；原型期补 `prototypes/v0.2/app.js` 后 `npm run probe:tabs`。
 
 ## 用户已确认的偏好与授权
 
+- **G1 签认**：2026-10-26，DESIGN-01–11 全部确认（原话留痕见 DESIGN-SESSION §二）。
+- **G4 新增**：2026-10-26，手工 + AI 数据维护更新检查与通过（M5 出口执行）。
 - 服务主体：患者 + 家属双主体（DEV-REQUIREMENTS §五默认值）。
 - 病程：全病程（确诊起）。
 - MinerU：启用。
