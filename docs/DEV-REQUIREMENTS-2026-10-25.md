@@ -50,3 +50,8 @@
 ## 七、闸口留痕
 
 - M0（2026-10-25）：认领 issue #44（claimed）+ 建仓 + init 185 文件 + 基线 staticPass ✅。
+
+## 八、发布口径（2026-10-25 用户确认，家族通用）
+
+- GitHub 发布可以：tag + Release（附 tgz + sha256）。
+- 工作台市场/awesome-dsh-workbench 目录投稿**不需要**——docs/10-MARKET-PUBLISHING.md 流程标注跳过。
