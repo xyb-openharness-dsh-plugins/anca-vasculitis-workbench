@@ -2,9 +2,10 @@
 
 - 文件：`0001_initial.sql`（16 表：档案级 2 + 事实可写 9 + 摘要/问题/记录 3 + 收藏 1 —— 以文件内实际 CREATE TABLE 为准）
 - sha256：`98bb769eafedff39d702dff66744f398dcf2131b918eeb6cbca1f3f5fde74492`
-- **状态：G3 冻结候选——用户签认前不视为冻结**。签认后本文件哈希不得变动；结构变更只能新增 `000N_*.sql`。
+- **状态：G3 已签认，冻结正式生效（2026-10-26，用户原话「确认通过」）**。
+  自本日之后：本文件哈希不得变动；结构变更只能新增 `000N_*.sql`。
 
-## 冻结断言（将随 G3 一并实测，node:sqlite 内存加载）
+## 冻结断言（G3 签认时实测，node:sqlite 内存加载）
 
 1. **判读列断言**：全表全列名扫描 deny 词表（remission / flare_status / relapse_risk / control_status / diagnosis / subtype / pathology_grade / risk_level / normal_flag / verdict / severity / match_score / eligible / suitability）→ 必须为 0 命中（T1；`scripts/check-write-schema.mjs` 静态执行）。
 2. 语法：`DatabaseSync.exec` 全量执行通过。
@@ -12,5 +13,6 @@
 
 ## G3 留痕
 
-- G3 请求签认：2026-10-26（随本次提交提出，待用户）。
-- 用户签认：待填（签认后此行写"✅ 冻结正式生效"+日期，并同步 `docs/DEV-PLAN.md` G3 行）。
+- G3 请求签认：2026-10-26（schema/0001 冻结候选随数据层提交提出）。
+- **用户签认：2026-10-26 原话「确认通过」→ ✅ 冻结正式生效**（16 表 / sha256 `98bb769e…74492`）。
+- 冻结后规则：结构变更只新增 `000N_*.sql`；0001 不改不删；任何哈希变动即冻结破坏，须评审留痕。

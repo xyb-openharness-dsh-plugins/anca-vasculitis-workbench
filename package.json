@@ -21,7 +21,7 @@
     "schema"
   ],
   "scripts": {
-    "check": "node --check dsh/index.js && node --check lib/client.js && node scripts/check-workbench-package.mjs . && node scripts/check-host-contract.mjs && node scripts/smoke-activate.mjs && node scripts/check-probe-coverage.mjs && node scripts/check-version-literal.mjs && node scripts/check-static-refs.mjs && node scripts/check-choice-limit.mjs && node scripts/check-write-schema.mjs && node scripts/check-wording.mjs . && node --test test/*.test.mjs",
+    "check": "node --check dsh/index.js && node --check lib/client.js && node scripts/check-workbench-package.mjs . && node scripts/check-host-contract.mjs && node scripts/smoke-activate.mjs && node scripts/check-probe-coverage.mjs && node scripts/check-version-literal.mjs && node scripts/check-static-refs.mjs && node scripts/check-choice-limit.mjs && node scripts/check-schema-freeze.mjs && node scripts/check-write-schema.mjs && node scripts/check-wording.mjs . && node --test test/*.test.mjs",
     "check:version-literal": "node scripts/check-version-literal.mjs",
     "check:host": "node scripts/check-host-contract.mjs",
     "check:static-refs": "node scripts/check-static-refs.mjs",
