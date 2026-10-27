@@ -2,6 +2,14 @@
 
 只增不删；每条写清"改了什么 + 为什么 + 用户可见结果"。版本号与 VERSION、package.json 三处必须一致。
 
+## 0.2.6 — 2026-10-27
+
+- 修复 DSH Desktop 空白根因：`build-client.mjs` 从 `dsh/routes.js` 读取 `UI_PREFIX`，但 routes 未导出该常量，
+  生成的 `lib/client.js` 中 `UI_ENTRY` 变成 `,/`，iframe 无效地址，HTML app.js 根本没显示。
+- `dsh/routes.js` 导出 `UI_PREFIX = API_PREFIX + '/ui'`；`build-client.mjs` 加断言：UI_PREFIX 必须是合法 API UI 路径；
+  `npm run check` 加 `build-client --check`；新增 3 个 client-entry 回归测试（prefix 唯一来源、iframe 入口、customFrame）。
+- 此修复需要重新安装并重启 DSH Desktop 才会生效。
+
 ## 0.2.5 — 2026-10-27
 
 - **V2 装机实测修缺陷**：`dsh/demo.js` 原先只读 `prototypes/v0.2/demo-data.js`，而 `prototypes/`

@@ -28,6 +28,7 @@ import { createMineruClient, maskToken } from './mineru.js'
 import { parseAndRecord } from './parse.js'
 
 export const API_PREFIX = '/api/anca-vasculitis'
+export const UI_PREFIX = `${API_PREFIX}/ui`
 
 function sendJson(res, status, body) {
   const buf = Buffer.from(JSON.stringify(body), 'utf8')

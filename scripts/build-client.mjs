@@ -24,6 +24,10 @@ const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 const { PANEL, AGENT_PANE, assertPanelConfig } = await import('../lib/layout.js')
 const { API_PREFIX, UI_PREFIX } = await import('../dsh/routes.js')
 const { version } = await import('../lib/version.js')
+if (typeof UI_PREFIX !== 'string' || !UI_PREFIX.startsWith(`${API_PREFIX}/ui`)) {
+  console.error(`✗ dsh/routes.js 必须导出合法 UI_PREFIX（当前 API_PREFIX=${API_PREFIX}, UI_PREFIX=${String(UI_PREFIX)}）`)
+  process.exit(1)
+}
 
 /** 仓库地址规范化成 https://github.com/<owner>/<repo>。 */
 function canonicalRepository(raw) {

@@ -19,7 +19,7 @@
    全站无裸删除文案（IP8）：更正 = 新增版本，旧版本永远可查（IP9）。 */
 
 const APP_INFO = {
-  version: '0.2.5', build: '2026-10-27',
+  version: '0.2.6', build: '2026-10-27',
   channelLabel: '交互原型 · 未接入 DSH / AI',
   brand: '小脉宝 VasPal', en: 'anca-vasculitis', proto: 'anca'
 };
