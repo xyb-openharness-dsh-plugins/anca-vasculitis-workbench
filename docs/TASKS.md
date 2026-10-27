@@ -2,7 +2,7 @@
 
 规格版本：SPEC M1 定稿（2026-10-26，G1 已签认）· 原型 hash：未产生（M2）· 当前分支 `main` · 包版本 `0.1.0`
 
-> 当前阶段：**G1 已签认（2026-10-26），进入 M2 原型**。判据与进度以 [DEV-PLAN](DEV-PLAN.md) 为准；本表只列实施任务。
+> 当前阶段：**M2 原型完成（v0.2.0），待 G2 签认**。判据与进度以 [DEV-PLAN](DEV-PLAN.md) 为准；本表只列实施任务。
 
 | ID | 业务单元 | 前置依赖 | 拥有文件/模块 | 实现/检查要求 | 证据 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -27,9 +27,9 @@
 
 ## 下一步具体动作 / 命令
 
-1. M2：按 [INTERACTION-DESIGN](INTERACTION-DESIGN.md) §二/§五 构建 `prototypes/v0.2/` 四件套；先独立评审（DESIGN-REVIEW），再 HVT X1–X4，交 G2 签认。
-2. G4（用户新增）在 **M5 出口**执行：手工 + AI 双通道数据维护更新检查（INTERACTION-DESIGN §十，ACC-32–34）；未过不进 M6。
-3. 命令：`npm run check` / `npm test`；原型期补 `prototypes/v0.2/app.js` 后 `npm run probe:tabs`。
+1. 用户做 **G2 签认**：预览 `prototypes/v0.2/index.html`（file:// 可开），对照 [PROTOTYPE-REVIEW](PROTOTYPE-REVIEW.md) 版本 + SHA-256 确认范围；确认后填入签认列。
+2. 签认后进 M3：schema/0001 冻结（sha256 + 判读列断言）→ G3。
+3. 命令：`npm run check`（含 probe-router 路由覆盖）、`npm test`（8 用例含 path-walk X1/X4）、`python3 scripts/probe-router.py --self-test`（必须 FAIL）、浏览器走查 `docs/PROTOTYPE-REVIEW.md` 预览方式。
 
 ## 用户已确认的偏好与授权
 

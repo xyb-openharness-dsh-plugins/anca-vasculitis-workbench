@@ -10,7 +10,7 @@
 | --- | --- | --- | --- | --- |
 | **M0 骨架** | Issue #44 认领 | 私有仓建立；`dsh-wb-cli init`；`cordis.patch.yml` 补 `config.root`；文档 9 件；`npm run check` 通过 | commit `4e45d54`；`npm run check` staticPass=true | ✅ 2026-10-25 |
 | **M1 调研 + SPEC** | M0 通过 | 三路调研有产出：医学约束 10 主题、用户与照护者证据、家族对比实测；DIFF-MATRIX 一级重名率 ≤70%（实测数）；SPEC/SCENARIOS/PATIENT-FLOW/INTERACTION-DESIGN 全量；G1 决策点显式列出 | `research-notes/medical-constraints.md`、`research-notes/family-landscape.md`、`docs/USER-RESEARCH.md`、`docs/DIFF-MATRIX.md`、`docs/SPEC.md`、`docs/SCENARIOS.md`、`docs/PATIENT-FLOW.md`、`docs/INTERACTION-DESIGN.md` | ✅ 2026-10-26（G1 签认） |
-| **M2 原型** | **G1 签认** | demo 构建器 + `prototypes/v0.2/` 四件套；窄宽规则（30 号）从第一版执行；HVT X1–X4 走查；独立评审 P0 修复留痕 | `docs/DESIGN-REVIEW.md`、`docs/HVT-REVIEW.md`、`prototypes/v0.2/` | ⏳ 下一阶段 |
+| **M2 原型** | **G1 签认** | demo 构建器 + `prototypes/v0.2/` 四件套；窄宽规则（30 号）从第一版执行；HVT X1–X4 走查；独立评审 P0 修复留痕 | `prototypes/v0.2/`（10 线/32 页/7 路径）+ `scripts/probe-router.py` + `test/path-walk.test.mjs` + `docs/DESIGN-REVIEW.md`（P0=0，P1×12 已修） | 🔧 2026-10-26 原型完成，**待 G2 签认** |
 | **M3 数据模型** | **G2 签认** | `schema/0001_initial.sql` 冻结 + sha256；判读列断言（无 `remission/flare_status/relapse_risk/control_status`）；`freeze-contract.md` | `schema/0001_initial.sql`、`docs/SCHEMA.md` | ⏳ |
 | **M4 临床库** | M3 通过 | `research/anca-vasculitis/` 四件套（manifest=jsonl=sqlite）；unified-trial-mcp 在线通道；FAILED 如实记录、不计覆盖 | `research/anca-vasculitis/` | ⏳ |
 | **M5 开发版** | M2/M3/M4 就绪 | 七步移植（数据层/读模型/路由/客户端/MinerU 六部件/测试与红线/宿主接线）；`npm run check` 全绿；`npm run audit` 无 fail；**G4 数据维护更新检查全部通过** | `dsh/`、`lib/`、`public/`、`test/`、ACC-32–34 | ⏳ |
@@ -56,3 +56,4 @@
 | 2026-10-25 | M0 完成；认领 Issue #44 | 建仓 + 文档骨架 |
 | 2026-10-26 | M1 三路调研产出；补本文件；更正指南病种编号 | 待 G1；`#33` → 第 7 病种 / 印刷页 33 |
 | 2026-10-26 | **G1 签认**（DESIGN-01–11）；**新增 G4**：手工 + AI 数据维护更新检查与通过（M5 出口执行，V3 复跑抽查；ACC-32–34） | M2 可开工；M5 出口与 M6 入口增加 G4 判据 |
+| 2026-10-26 | **M2 原型完成**：prototypes/v0.2（10 线/32 页/7 路径、双档案、双通道、34/35 号、30 号窄宽）；独立评审 P0=0、P1×12 已修复；check 全绿 + 探针 + 无头走查 | 待 G2 签认（签认物与 hash 见 docs/PROTOTYPE-REVIEW.md） |
