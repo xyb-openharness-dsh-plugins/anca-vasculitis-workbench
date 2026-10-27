@@ -29,7 +29,8 @@
 
 1. 用户做 **G2 签认**：预览 `prototypes/v0.2/index.html`（file:// 可开），对照 [PROTOTYPE-REVIEW](PROTOTYPE-REVIEW.md) 版本 + SHA-256 确认范围；确认后填入签认列。
 2. 用户做 **G3 签认**（可与 G2 并行）：确认 `schema/0001_initial.sql`（14 表）冻结候选（`schema/freeze-contract.md`，sha256 `11381c58…`）；签认后冻结生效，此后结构变更只新增 000N。
-3. 数据层现状：`POST/GET /api/anca-vasculitis/records/:kind` 全族、更正链、saved-trials、bootstrap capabilities 已实现并有 20 用例覆盖（SQLite 主力 + 文件回退）。
+3. **M4 已完成首轮**（2026-10-27）：四件套 + 7 断言 + 35 号三态读模型；中文通道全 FAILED 待重试。
+4. 数据层现状：`POST/GET /api/anca-vasculitis/records/:kind` 全族、更正链、saved-trials、bootstrap capabilities 已实现并有 20 用例覆盖（SQLite 主力 + 文件回退）。
 3. 命令：`npm run check`（含 probe-router 路由覆盖）、`npm test`（8 用例含 path-walk X1/X4）、`python3 scripts/probe-router.py --self-test`（必须 FAIL）、浏览器走查 `docs/PROTOTYPE-REVIEW.md` 预览方式。
 
 ## 用户已确认的偏好与授权

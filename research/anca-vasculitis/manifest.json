@@ -1,0 +1,157 @@
+{
+  "topic": "anca-vasculitis",
+  "disease": "ANCA 相关血管炎（AAV：GPA / MPA / EGPA）",
+  "year": "2026",
+  "snapshotDate": "2026-10-27",
+  "tool": "unified-trial-mcp @ /Users/qinxiaoqiang/Downloads/unified_search_trials/dist/src/cli/main.js",
+  "queries": [
+    {
+      "keyword": "ANCA相关血管炎",
+      "note": "中文标准名（指南第 7 病种）"
+    },
+    {
+      "keyword": "ANCA相关性血管炎",
+      "note": "中文常用写法（\"性\"）"
+    },
+    {
+      "keyword": "肉芽肿性多血管炎",
+      "note": "GPA 中文名"
+    },
+    {
+      "keyword": "显微镜下多血管炎",
+      "note": "MPA 中文名"
+    },
+    {
+      "keyword": "嗜酸性肉芽肿性多血管炎",
+      "note": "EGPA 中文名"
+    },
+    {
+      "keyword": "抗中性粒细胞胞浆抗体",
+      "note": "中文抗体名（宽口径）"
+    },
+    {
+      "keyword": "ANCA-associated vasculitis",
+      "note": "英文标准名"
+    },
+    {
+      "keyword": "granulomatosis with polyangiitis",
+      "note": "GPA 英文名"
+    },
+    {
+      "keyword": "microscopic polyangiitis",
+      "note": "MPA 英文名"
+    },
+    {
+      "keyword": "eosinophilic granulomatosis with polyangiitis",
+      "note": "EGPA 英文名"
+    },
+    {
+      "keyword": "ANCA vasculitis",
+      "note": "英文常用简称"
+    },
+    {
+      "keyword": "avacopan",
+      "note": "药物线（补体 C5a 受体抑制剂）"
+    },
+    {
+      "keyword": "vasculitis",
+      "note": "英文宽口径（含非 AAV 血管炎，靠标题人工筛）"
+    },
+    {
+      "keyword": "ANCA",
+      "note": "抗体缩写宽口径"
+    }
+  ],
+  "perSourceLimit": 200,
+  "recordCount": 1,
+  "dbCount": 1,
+  "needsHumanReview": [
+    {
+      "recordId": "ctv:UTN000545420",
+      "title": "An Exploratory Clinical Study of YTS109 Cell in Subjects With Relapsed/Refractory Autoimmune Disease",
+      "query": "ANCA-associated vasculitis"
+    }
+  ],
+  "relevance": {
+    "rule": "① 标题/URL 命中 AAV 词 → 相关；② 精确关键词查出且标题无其他病种/治疗领域信号 → 相关但标 needsHumanReview；其余判噪声不入主表",
+    "terms": [
+      "vasculitis",
+      "polyangiitis",
+      "wegener",
+      "churg",
+      "granulomatosis",
+      "microscopic polyangiitis",
+      "anti-neutrophil",
+      "antineutrophil",
+      "血管炎",
+      "肉芽肿性多血管炎",
+      "显微镜下多血管炎",
+      "anca/mpa/gpa/egpa（词边界匹配）"
+    ],
+    "droppedNotAAV": 43,
+    "droppedSample": [
+      "A Prospective Cohort Study of Telitacicept Versus Conventional Immunos",
+      "A Phase 1b Biomarker-Driven Combination Trial of Copanlisib, Olaparib,",
+      "A Phase 2, Multicenter Study to Evaluate the Efficacy and Safety Using",
+      "A Phase 4, Randomized, Multicenter, Double-blind, Parallel-group, 24 W",
+      "A Phase III Study of Chiauranib Plus PD-1 Inhibitor, Albumin-paclitaxe"
+    ],
+    "caveat": "ctv 本地索引对长词组存在分词噪声（如 \"granulomatosis with polyangiitis\" 返回的多为含 phase/study 的无关条目；\"vasculitis\" 会带出大量肿瘤试验；短缩写 mpa/gpa/egpa 若不做词边界会误匹配 remodeling/renal 内部）。本包准入规则：标题/URL 命中 AAV 词，或精确关键词且标题无其他病种/治疗领域信号（后者标 needsHumanReview）。本轮结论：AAV 直接相关记录 0 条，入库项均为待人工确认。中文通道（chinadrugtrials/chictr_online/ictrp）本轮全部 DENIED/FAILED/NO_RESULTS，中文登记未取得，须下次重试——不得据此说\"中国无 AAV 相关试验\"。零命中只代表该来源本次未返回，不代表全球不存在（ctv 为本地子集索引，ICTRP 上游存在已知静默缺口）。"
+  },
+  "sourceStatusRows": 84,
+  "coverage": {
+    "counted": [
+      "ctv"
+    ],
+    "notCounted": [
+      {
+        "sourceId": "chinadrugtrials",
+        "state": "DENIED"
+      },
+      {
+        "sourceId": "xyb_chinadrugtrials_archive",
+        "state": "NO_RESULTS"
+      },
+      {
+        "sourceId": "chictr_online",
+        "state": "FAILED"
+      },
+      {
+        "sourceId": "chictr_pancreatic_archive",
+        "state": "NEEDS_SETUP"
+      },
+      {
+        "sourceId": "ictrp",
+        "state": "FAILED"
+      }
+    ],
+    "rule": "仅 SUCCESS / OK* 计入覆盖；FAILED / DENIED / NEEDS_SETUP / NO_RESULTS 一律不算\"已查过\"，不计覆盖（35 号纪律）"
+  },
+  "sourceStates": {
+    "chinadrugtrials": "DENIED",
+    "xyb_chinadrugtrials_archive": "NO_RESULTS",
+    "chictr_online": "FAILED",
+    "chictr_pancreatic_archive": "NEEDS_SETUP",
+    "ctv": "SUCCESS",
+    "ictrp": "FAILED"
+  },
+  "honesty": {
+    "offlineCorpora": "ChiCTR/CDE/CTV 离线语料仅胰腺癌覆盖；AAV 只依赖在线通道终态，见 source_statuses 表",
+    "statusWording": "登记 ≠ 有效 ≠ 安全 ≠ 可入组；状态一律\"登记状态，未核实\"",
+    "mergeRule": "仅同一登记号（NCT/ChiCTR/CDE 等）合并，其余并排保留来源",
+    "noMatchScore": "本数据包不产出任何数值匹配度；分层与三态由读模型按 35 号执行"
+  },
+  "files": {
+    "jsonl": {
+      "path": "trials-2026.jsonl",
+      "sha256": "3700d4ffeef51fe11fceed70022a3141e5ba07b634da3f910a9a0b357089f2e7",
+      "lines": 1
+    },
+    "sqlite": {
+      "path": "anca_trials_2026.sqlite",
+      "sha256": "aae844a8491ac3dfd9b44005ff1a09b613ccfa9d427ad69c3ef04714fe9ce0b7",
+      "trials": 1,
+      "sourceStatusRows": 84
+    }
+  }
+}

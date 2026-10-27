@@ -21,6 +21,7 @@
  */
 import { createHash } from 'node:crypto'
 import { WRITE_KINDS, WRITE_KIND_KEYS, DENY_COLUMNS, SCHEMA_VERSION, MARKER_NAMES } from './write-schema.js'
+import { snapshotMeta, trialMatches } from './trials.js'
 
 export const API_PREFIX = '/api/anca-vasculitis'
 
@@ -192,6 +193,8 @@ export function createApiHandler({ source, version, build, failure }) {
           'GET  /candidates', 'POST /candidates/:id/accept', 'POST /candidates/:id/reject',
           ...WRITE_KIND_KEYS.map((k) => `POST /records/${k}`),
           ...WRITE_KIND_KEYS.map((k) => `GET  /records/${k}`),
+          'GET  /trials（35 号三态：命中/无法自动匹配；不产出"不适用"）',
+          'GET  /trials/snapshot（快照日期、覆盖来源、待人工复核）',
           'POST /saved-trials', 'DELETE /saved-trials', 'GET /saved-trials'
         ]
       })
@@ -224,6 +227,21 @@ export function createApiHandler({ source, version, build, failure }) {
         if (status === 500) throw error
         return sendJson(res, status, { error: error.code || 'CANDIDATE_FAILED', message: error.message })
       }
+    }
+
+    /* 35 号三态：线索分层 + 无法自动匹配 + 不产出"不适用"；不产出数值匹配度 */
+    if (path === `${API_PREFIX}/trials`) {
+      if (method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' })
+      const profileId = url.searchParams.get('profileId')
+      const rows = profileId ? source.list('profile', { profileId }) : []
+      const profile = rows[0] || {}
+      const result = trialMatches(profile)
+      return sendJson(res, 200, result)
+    }
+
+    if (path === `${API_PREFIX}/trials/snapshot`) {
+      if (method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' })
+      return sendJson(res, 200, snapshotMeta())
     }
 
     if (path === `${API_PREFIX}/saved-trials`) {

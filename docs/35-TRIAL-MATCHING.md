@@ -30,6 +30,22 @@
 
 每条结果固定带：来源通道与终态（SUCCESS/FAILED 语义）、snapshotDate、"登记状态，未核实"、登记状态 ≠ 有效 ≠ 可入组 声明。
 
+## 三·五、M4 首轮实测结论（2026-10-27）
+
+| 项 | 实测 |
+| --- | --- |
+| 采集关键词 | 14 组（中文标准名/常用写法 + 三型中文名 + 抗体宽口径 + 英文全称/三型 + 缩写 + avacopan + vasculitis/ANCA 宽口径） |
+| 来源终态 | ctv **SUCCESS（唯一计覆盖）**；chinadrugtrials **DENIED**、chictr_online **FAILED**、ictrp **FAILED**、xyb_chinadrugtrials_archive **NO_RESULTS**、chictr_pancreatic_archive **NEEDS_SETUP** |
+| 入库 | **1 条**（泛自身免疫病细胞治疗研究，标 `needsHumanReview`）；**AAV 直接相关 0 条** |
+| 丢弃 | 43 条非 AAV（宽口径词噪声，多为肿瘤试验） |
+| 一致性 | manifest = jsonl = sqlite（1=1=1）+ 文件 sha256 指纹 + 7 条断言（`test/trials-pack.test.mjs`） |
+
+**三个必须记住的坑（都是本轮实测）**：
+
+1. **ctv 本地索引对长词组有分词噪声**：查 `granulomatosis with polyangiitis` 返回的多是含 phase/study 的无关条目；`vasculitis` 会带出大量肿瘤试验。→ 入库前必须做相关性过滤，不能只靠查询词。
+2. **短缩写必须词边界**：`mpa` 曾把 `remodeling`、`renal` 内部命中，把 Dupilumab 食管研究判成 AAV。→ 用 `(^|[^a-z])w([^a-z]|$)` 匹配。
+3. **零命中不等于不存在**：中文通道全 FAILED/DENIED，只代表"本轮没查到"，**不得**写成"中国无 AAV 相关试验"。
+
 ## 四、schema 与断言
 
 - 不新增判读列：禁止 `match_score`、`eligible`、`suitability` 类列；收藏只落 `saved_trial(trial_key, saved_at)`。

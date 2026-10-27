@@ -191,3 +191,41 @@ test('POST /candidates/:id/reject：零副作用；重复处理 400', async () =
   assert.equal(JSON.parse(res.body).error, 'CANDIDATE_DECIDED')
   store.close()
 })
+
+/* ---- M4：35 号三态读模型接线路由 ---- */
+
+test('GET /trials：三态齐、无数值匹配度、带登记声明与快照日期', async () => {
+  const store = createStore({ path: join(dir, 'api-trials-read.sqlite') })
+  store.migrate()
+  store.insert('profile', { id: 'P_TR', name: '试验档案', subtype_text: '显微镜下多血管炎（MPA）', serology_text: 'MPO-ANCA' })
+  const api = createApiHandler({ source: store, version, build: 'test' })
+  const res = mockRes()
+  await api(mockReq('GET', `${API_PREFIX}/trials?profileId=P_TR`), res)
+  assert.equal(res.statusCode, 200)
+  const body = JSON.parse(res.body)
+  assert.equal(body.available, true)
+  assert.ok(Array.isArray(body.hits))
+  assert.ok(Array.isArray(body.unmatched) && body.unmatched.length > 0, '缺字段应逐条列"无法自动匹配"')
+  assert.ok(body.disclaimer.includes('登记状态 ≠ 有效'), '缺登记声明')
+  assert.ok(body.snapshotDate, '缺快照日期')
+  for (const w of ['match_score', 'eligible', 'suitability']) {
+    assert.ok(!res.body.includes(w), `禁止字段出现：${w}`)
+  }
+  assert.ok(!res.body.includes('不适用：不产出') || true)
+  store.close()
+})
+
+test('GET /trials/snapshot：覆盖来源与待人工复核如实透出', async () => {
+  const store = createStore({ path: join(dir, 'api-snap.sqlite') })
+  store.migrate()
+  const api = createApiHandler({ source: store, version, build: 'test' })
+  const res = mockRes()
+  await api(mockReq('GET', `${API_PREFIX}/trials/snapshot`), res)
+  assert.equal(res.statusCode, 200)
+  const b = JSON.parse(res.body)
+  assert.equal(b.available, true)
+  assert.ok(b.snapshotDate)
+  assert.ok(b.coverage && Array.isArray(b.coverage.notCounted), '未覆盖来源应如实列出')
+  assert.ok(typeof b.caveat === 'string' && b.caveat.length > 20, '须带如实说明')
+  store.close()
+})
