@@ -14,4 +14,8 @@
     `GET /bootstrap`（capabilities = AI 经同一写接口入库的契约面）、`GET /health`（旧健康路径兼容保留）；
   - 新检查器 `scripts/check-write-schema.mjs`（写映射列名必须存在于冻结 schema + deny 列断言）
     与 `scripts/check-wording.mjs`（文案红线静态层），接入 `npm run check`；单测并入 check 链。
+- 摄取管线（同日追加）：schema/0001 增 `parse_job`/`candidate` 两表；`POST /parse`
+  （text/md/csv 内置轻解析产候选；PDF/图片如实 FAILED(PARSER_UNAVAILABLE)，M5 接 MinerU）+
+  `/candidates` accept/reject（accept 走同一写接口入事实层，失败零副作用）；
+  原型「病情一图秀」重做为小面板真实纵轴（修图表控件变形与归一化误导）。
 - 0.1.0 — 2026-10-25：由社区脚手架 dsh-wb-cli@1.5.8 (c811e4f) 初始化，仅有注册骨架与健康接口，无业务功能。

@@ -12,7 +12,9 @@
 --   T5 side_effect.section 分节（bone/glucose/infection/eye/other），分类数据不进趋势（读模型约束）；
 --   T6 recorder（PATIENT/FAMILY）+ visibility（normal/private）贯穿全部可写事实表；
 --   T7 followup_plan 只存医嘱原文（source_text），无 interval 推算列；
---   35 号：saved_trial 只有 trial_key + saved_at，无 match_score/eligible。
+--   35 号：saved_trial 只有 trial_key + saved_at，无 match_score/eligible；
+--   18 号 v2：parse_job（文件/拍照 → 解析任务，FAILED 如实记录不计覆盖）+ candidate
+--     （候选层：payload 列名与对应 kind 的写映射一致；确认才经同一写接口入事实层，IP9）。
 
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
@@ -213,6 +215,35 @@ CREATE TABLE note (
 );
 
 -- ═══ 试验收藏（35 号：无 match_score/eligible；收藏/取消零副作用）═══
+-- ═══ 解析与候选（18 号 v2 六部件的数据落点；确认才入事实层）═══
+CREATE TABLE parse_job (
+  id TEXT PRIMARY KEY,
+  profile_id TEXT REFERENCES profile(id),
+  document_id TEXT REFERENCES document(id),
+  source_kind TEXT NOT NULL CHECK (source_kind IN ('file','photo','text')),
+  filename TEXT,
+  mime TEXT,
+  size_bytes INTEGER,
+  status TEXT NOT NULL CHECK (status IN ('queued','parsed','failed','unsupported')),
+  error_code TEXT,               -- 失败时如实记录（如 PARSER_UNAVAILABLE），不计覆盖
+  error_text TEXT,
+  created_at TEXT NOT NULL,
+  finished_at TEXT
+);
+
+CREATE TABLE candidate (
+  id TEXT PRIMARY KEY,
+  profile_id TEXT NOT NULL REFERENCES profile(id),
+  parse_job_id TEXT REFERENCES parse_job(id),
+  kind TEXT NOT NULL,            -- 目标事实 kind（与 dsh/write-schema.js 的 WRITE_KINDS 一致）
+  payload TEXT NOT NULL,         -- JSON：字段候选（列名与该 kind 写映射一致）
+  quote_text TEXT,               -- 抽取依据原文
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','rejected')),
+  created_at TEXT NOT NULL,
+  decided_at TEXT
+);
+CREATE INDEX idx_cand_profile_status ON candidate(profile_id, status);
+
 CREATE TABLE saved_trial (
   id TEXT PRIMARY KEY,
   profile_id TEXT NOT NULL REFERENCES profile(id),

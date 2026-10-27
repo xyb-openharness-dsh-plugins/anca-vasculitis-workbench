@@ -3,7 +3,7 @@
 > 权威文件：`schema/0001_initial.sql`（sha256 见 `schema/freeze-contract.md`，**G3 签认前不视为冻结**）。
 > 写入契约：`dsh/write-schema.js`（12 种 kind → 表 → 列，逐列一致）；检查器 `scripts/check-write-schema.mjs`。
 
-## 表清单（14 表）
+## 表清单（16 表）
 
 | 表 | 行 | 回答什么 | 关键列 / 约束 | 红线落点 |
 | --- | --- | --- | --- | --- |
@@ -20,6 +20,8 @@
 | visit_summary | 摘要 | 复诊摘要 | items JSON（勾选的事实） | T1 |
 | question | 摘要 | 问题清单 | status open/done、answered_text | — |
 | note | 摘要 | 随手记（可私密） | visibility | T6 |
+| parse_job | 摄取 | 文件/拍照/文本 → 解析任务 | status queued/parsed/failed/unsupported；FAILED 如实（error_code），不计覆盖 | 18 号 v2 |
+| candidate | 候选层 | 解析/AI 产出的事实候选 | kind（目标事实 kind）+ payload JSON（列名=该 kind 写映射）+ status pending/accepted/rejected；确认才入事实层 | 18 号/IP9 |
 | saved_trial | 收藏 | 35 号收藏 | trial_key+saved_at，UNIQUE，无匹配度列 | 35 号 |
 
 ## 更正链（版本链）
@@ -34,6 +36,9 @@
 - deny 列（判定类）永不接受：`SCHEMA_DENY_COLUMN`（T1 机器化，词表在 `dsh/write-schema.js`）
 - `POST /records/:kind/:id/correct` · `GET /records/:kind?profileId=`
 - `POST|GET|DELETE /api/anca-vasculitis/saved-trials`（35 号：收藏/取消零副作用）
+- `POST /api/anca-vasculitis/parse`（文件/拍照/文本摄取：存原件 document + 登记 parse_job → 产出 candidate；
+  内置轻解析支持 text/md/csv；PDF/图片本阶段如实 FAILED(PARSER_UNAVAILABLE)，M5 接 MinerU 六部件后同一端点产出候选）
+- `GET /candidates`、`POST /candidates/:id/accept`（写事实层成功才置 accepted，失败零副作用）、`POST /candidates/:id/reject`
 - `GET /api/anca-vasculitis/bootstrap`：capabilities（存储模式 sqlite/file 回退、schema 版本、kinds+列映射、端点清单）——AI 经同一写接口入库的契约面
 - `GET /health`（`/api/anca-vasculitis-workbench/health` 旧路径兼容保留一个发布周期）
 

@@ -17,7 +17,7 @@
 import { mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync, existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { SCHEMA_VERSION, WRITE_KINDS, DENY_COLUMNS, JSON_COLUMNS } from './write-schema.js'
+import { SCHEMA_VERSION, WRITE_KINDS, DENY_COLUMNS, JSON_COLUMNS, WRITE_KIND_KEYS } from './write-schema.js'
 
 export const SCHEMA_DIR = fileURLToPath(new URL('../schema/', import.meta.url))
 const MIGRATION_RE = /^(\d{4})_[a-z0-9_]+\.sql$/
@@ -164,6 +164,52 @@ function createSqliteStore({ path, DatabaseSync, id }) {
     return db.prepare(sql).all(...args)
   }
 
+  /* ---- 候选层（18 号 v2）：候选不是事实；确认才走 insert 进事实层（IP9） ---- */
+  function createParseJob({ profileId, documentId, sourceKind, filename, mime, sizeBytes, status = 'queued', errorCode = null, errorText = null }) {
+    const job = { id: newId('pj'), profile_id: profileId || null, document_id: documentId || null, source_kind: sourceKind, filename: filename || null, mime: mime || null, size_bytes: sizeBytes ?? null, status, error_code: errorCode, error_text: errorText, created_at: nowIso(), finished_at: status === 'queued' ? null : nowIso() }
+    db.prepare(`INSERT INTO parse_job (id, profile_id, document_id, source_kind, filename, mime, size_bytes, status, error_code, error_text, created_at, finished_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(job.id, job.profile_id, job.document_id, job.source_kind, job.filename, job.mime, job.size_bytes, job.status, job.error_code, job.error_text, job.created_at, job.finished_at)
+    return job
+  }
+  function finishParseJob(id, status, errorCode = null, errorText = null) {
+    db.prepare('UPDATE parse_job SET status = ?, error_code = ?, error_text = ?, finished_at = ? WHERE id = ?').run(status, errorCode, errorText, nowIso(), id)
+    return db.prepare('SELECT * FROM parse_job WHERE id = ?').get(id)
+  }
+  function getParseJob(id) { return db.prepare('SELECT * FROM parse_job WHERE id = ?').get(id) || null }
+
+  function createCandidate({ profileId, parseJobId, kind, payload, quoteText }) {
+    if (!WRITE_KIND_KEYS.includes(kind)) throw new WriteError('SCHEMA_KIND_UNKNOWN', `候选目标 kind 不在写入契约里：${kind}`)
+    const data = typeof payload === 'string' ? JSON.parse(payload) : payload
+    const clean = validateRow(kind, data)   // 候选创建即按写映射校验；不合法直接拒
+    const row = { id: newId('cd'), profile_id: profileId, parse_job_id: parseJobId || null, kind, payload: JSON.stringify(clean), quote_text: quoteText || null, status: 'pending', created_at: nowIso(), decided_at: null }
+    db.prepare('INSERT INTO candidate (id, profile_id, parse_job_id, kind, payload, quote_text, status, created_at, decided_at) VALUES (?,?,?,?,?,?,?,?,?)')
+      .run(row.id, row.profile_id, row.parse_job_id, row.kind, row.payload, row.quote_text, row.status, row.created_at, row.decided_at)
+    return row
+  }
+  function listCandidates({ profileId, status } = {}) {
+    const where = []; const args = []
+    if (profileId) { where.push('profile_id = ?'); args.push(profileId) }
+    if (status) { where.push('status = ?'); args.push(status) }
+    return db.prepare(`SELECT * FROM candidate${where.length ? ' WHERE ' + where.join(' AND ') : ''} ORDER BY rowid`).all(...args)
+  }
+  function getCandidate(id) { return db.prepare('SELECT * FROM candidate WHERE id = ?').get(id) || null }
+  /* 确认入库：写事实层成功才置 accepted——失败原样抛错，零副作用 */
+  function acceptCandidate(id) {
+    const row = getCandidate(id)
+    if (!row) throw new WriteError('ROW_NOT_FOUND', `找不到候选：${id}`)
+    if (row.status !== 'pending') throw new WriteError('CANDIDATE_DECIDED', `候选已处理：${row.status}`)
+    const fact = insert(row.kind, JSON.parse(row.payload))
+    db.prepare('UPDATE candidate SET status = ?, decided_at = ? WHERE id = ?').run('accepted', nowIso(), id)
+    return { candidate: getCandidate(id), fact }
+  }
+  function rejectCandidate(id) {
+    const row = getCandidate(id)
+    if (!row) throw new WriteError('ROW_NOT_FOUND', `找不到候选：${id}`)
+    if (row.status !== 'pending') throw new WriteError('CANDIDATE_DECIDED', `候选已处理：${row.status}`)
+    db.prepare('UPDATE candidate SET status = ?, decided_at = ? WHERE id = ?').run('rejected', nowIso(), id)
+    return getCandidate(id)
+  }
+
   function saveTrial(profileId, trialKey) {
     db.prepare('INSERT OR IGNORE INTO saved_trial (id, profile_id, trial_key, saved_at) VALUES (?, ?, ?, ?)')
       .run(newId('st'), profileId, trialKey, nowIso())
@@ -181,6 +227,7 @@ function createSqliteStore({ path, DatabaseSync, id }) {
     mode: 'sqlite', id,
     migrate, insert, correct, list,
     saveTrial, unsaveTrial, listSavedTrials,
+    createParseJob, finishParseJob, getParseJob, createCandidate, listCandidates, getCandidate, acceptCandidate, rejectCandidate,
     capabilities: () => ({ storage: { mode: 'sqlite', path: path === ':memory:' ? null : path, fallback: 'file' }, schemaVersion: SCHEMA_VERSION }),
     close: () => { try { db.close() } catch { /* 幂等 */ } }
   }
@@ -208,6 +255,8 @@ function createFileStore({ path, id }) {
     }
     for (const spec of Object.values(WRITE_KINDS)) tables[spec.table] = tables[spec.table] || []
     tables.saved_trial = tables.saved_trial || []
+    tables.parse_job = tables.parse_job || []
+    tables.candidate = tables.candidate || []
     loaded = true
   }
 
@@ -266,6 +315,52 @@ function createFileStore({ path, id }) {
     return rows
   }
 
+  function createParseJob({ profileId, documentId, sourceKind, filename, mime, sizeBytes, status = 'queued', errorCode = null, errorText = null }) {
+    load()
+    const job = { id: newId('pj'), profile_id: profileId || null, document_id: documentId || null, source_kind: sourceKind, filename: filename || null, mime: mime || null, size_bytes: sizeBytes ?? null, status, error_code: errorCode, error_text: errorText, created_at: nowIso(), finished_at: status === 'queued' ? null : nowIso() }
+    rowsOf('parse_job').push(job); flush()
+    return job
+  }
+  function finishParseJob(id, status, errorCode = null, errorText = null) {
+    load()
+    const rows = rowsOf('parse_job'); const j = rows.find((r) => r.id === id)
+    if (j) { j.status = status; j.error_code = errorCode; j.error_text = errorText; j.finished_at = nowIso(); flush() }
+    return j || null
+  }
+  function getParseJob(id) { load(); return rowsOf('parse_job').find((r) => r.id === id) || null }
+
+  function createCandidate({ profileId, parseJobId, kind, payload, quoteText }) {
+    load()
+    if (!WRITE_KIND_KEYS.includes(kind)) throw new WriteError('SCHEMA_KIND_UNKNOWN', `候选目标 kind 不在写入契约里：${kind}`)
+    const data = typeof payload === 'string' ? JSON.parse(payload) : payload
+    const clean = validateRow(kind, data)
+    const row = { id: newId('cd'), profile_id: profileId, parse_job_id: parseJobId || null, kind, payload: JSON.stringify(clean), quote_text: quoteText || null, status: 'pending', created_at: nowIso(), decided_at: null }
+    rowsOf('candidate').push(row); flush()
+    return row
+  }
+  function listCandidates({ profileId, status } = {}) {
+    load()
+    return rowsOf('candidate').filter((r) => (!profileId || r.profile_id === profileId) && (!status || r.status === status))
+  }
+  function getCandidate(id) { load(); return rowsOf('candidate').find((r) => r.id === id) || null }
+  function acceptCandidate(id) {
+    load()
+    const row = rowsOf('candidate').find((r) => r.id === id)
+    if (!row) throw new WriteError('ROW_NOT_FOUND', `找不到候选：${id}`)
+    if (row.status !== 'pending') throw new WriteError('CANDIDATE_DECIDED', `候选已处理：${row.status}`)
+    const fact = insert(row.kind, JSON.parse(row.payload))
+    row.status = 'accepted'; row.decided_at = nowIso(); flush()
+    return { candidate: { ...row }, fact }
+  }
+  function rejectCandidate(id) {
+    load()
+    const row = rowsOf('candidate').find((r) => r.id === id)
+    if (!row) throw new WriteError('ROW_NOT_FOUND', `找不到候选：${id}`)
+    if (row.status !== 'pending') throw new WriteError('CANDIDATE_DECIDED', `候选已处理：${row.status}`)
+    row.status = 'rejected'; row.decided_at = nowIso(); flush()
+    return { ...row }
+  }
+
   function saveTrial(profileId, trialKey) {
     load()
     const rows = rowsOf('saved_trial')
@@ -291,6 +386,7 @@ function createFileStore({ path, id }) {
     migrate: () => load(),
     insert, correct, list,
     saveTrial, unsaveTrial, listSavedTrials,
+    createParseJob, finishParseJob, getParseJob, createCandidate, listCandidates, getCandidate, acceptCandidate, rejectCandidate,
     capabilities: () => ({ storage: { mode: 'file', path, fallback: null, reason: 'node:sqlite 不可用，已回退到 JSON 文件存储（同一写契约）' }, schemaVersion: SCHEMA_VERSION }),
     close: () => { if (loaded) flush() }
   }

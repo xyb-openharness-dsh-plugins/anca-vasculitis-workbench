@@ -117,5 +117,16 @@ export const WRITE_KINDS = {
 
 export const WRITE_KIND_KEYS = Object.keys(WRITE_KINDS)
 
+/** 指标名 → marker（解析/候选映射白名单：映射不到就拒收，不猜轨道） */
+export const MARKER_NAMES = {
+  'PR3-ANCA': 'PR3_ANCA', 'PR3': 'PR3_ANCA', 'MPO-ANCA': 'MPO_ANCA', 'MPO': 'MPO_ANCA',
+  '血肌酐': 'CREATININE', '肌酐': 'CREATININE', 'CREATININE': 'CREATININE',
+  'eGFR': 'EGFR', 'EGFR': 'EGFR',
+  '尿蛋白': 'URINE_PROTEIN', '24小时尿蛋白': 'URINE_PROTEIN',
+  '尿红细胞': 'URINE_RBC',
+  '血沉': 'ESR', 'ESR': 'ESR',
+  'CRP': 'CRP', 'C反应蛋白': 'CRP', 'C 反应蛋白': 'CRP'
+}
+
 /** orgsns/JSON 字段：store 在写入前做 JSON.parse 校验 */
 export const JSON_COLUMNS = new Set(['organs', 'terms', 'items'])

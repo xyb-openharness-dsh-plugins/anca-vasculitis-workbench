@@ -149,16 +149,25 @@ td .num{font-variant-numeric:tabular-nums}
 .spark path{fill:none;stroke-width:2;stroke-linecap:round}
 
 /* ---------- 大趋势图 ---------- */
-.chart{width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:var(--radius)}
-.chart .gridline{stroke:var(--line);stroke-width:1}
-.chart .axis{stroke:var(--line-strong);stroke-width:1}
-.chart text{fill:var(--muted);font-size:10px}
-.chart .legend{display:flex;gap:12px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-2)}
-.legend .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:baseline}
-.chart-controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
-.chart-controls .grp{display:flex;gap:7px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px 10px}
-.chart-controls label{display:inline-flex;align-items:center;gap:5px;font-size:12px;cursor:pointer}
-.track-badge{font-size:10.5px;color:var(--muted)}
+/* 图表控件（30 号规则 1：轨道分组纵向堆叠，标签永不竖排单字） */
+.chart-controls{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px;margin-bottom:10px}
+.track-group{border:1px solid var(--line);border-radius:var(--radius-sm);padding:6px 12px 10px;min-width:0;margin:0;background:#fff}
+.track-group legend{padding:0 6px;font-size:11px;color:var(--mist-deep);white-space:nowrap;font-weight:600}
+.track-group .opt{display:flex;align-items:center;gap:6px;padding:3px 0;white-space:nowrap;font-size:12px;color:var(--ink-2)}
+.track-group input{width:auto;min-width:0;flex:0 0 auto}
+.range-grp{display:inline-flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.range-grp button{min-height:30px;padding:3px 12px;font-size:12px;border-radius:999px;background:var(--mist-soft)}
+.range-grp button[aria-pressed="true"]{background:var(--brand-deep);color:#fff;border-color:var(--brand-deep)}
+/* 小面板趋势图：各面板独立真实纵轴 */
+.chart-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;min-width:0}
+.chart-panel{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;min-width:0;box-shadow:var(--shadow)}
+.chart-panel h4{display:flex;align-items:center;gap:6px;margin:0 0 6px;font-size:12px;flex-wrap:wrap}
+.chart-panel h4 small{color:var(--muted);font-weight:400}
+.chart-panel .dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.panel-svg{width:100%;height:auto;display:block}
+.panel-svg .gridline{stroke:var(--line);stroke-width:1}
+.panel-svg .axis{stroke:var(--line-strong);stroke-width:1}
+.panel-svg .ylab{fill:var(--muted);font-size:9.5px}
 
 /* ---------- 时间线 ---------- */
 .tl{list-style:none;margin:0;padding:0 0 0 18px;border-left:2px solid var(--line-strong);display:flex;flex-direction:column;gap:14px}

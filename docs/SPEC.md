@@ -95,6 +95,10 @@
 - 存储：**SQLite 主力**（node:sqlite，`<资料目录>/anca-vasculitis.sqlite`）+ **JSON 文件回退**
   （node:sqlite 不可用或开库失败时自动切换，同一接口同一更正链；模式经 bootstrap 如实上报）。
 - 交界守卫：校验失败一律 4xx JSON（400/404/405/413），不裸 throw 变 500。
+- 摄取面（2026-10-26）：`POST /parse`（文件/拍照/文本 → 原件入库 + parse_job + candidate 候选层；
+  内置轻解析 text/md/csv；PDF/图片如实 FAILED(PARSER_UNAVAILABLE)，M5 接 MinerU 六部件）；
+  `GET /candidates`、`POST /candidates/:id/accept|reject`（accept=同一 insert 写事实层，失败零副作用）。
+- 候选层落库：schema/0001 增 `parse_job` + `candidate` 两表（0001 尚未冻结，随 G3 一并签认）。
 - 检查器：`scripts/check-write-schema.mjs`（写映射列名必须存在于冻结 schema + deny 列断言），
   已接入 `npm run check`。
 - 导出：private 默认排除；导出快照带版本号与生成时间。

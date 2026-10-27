@@ -54,4 +54,5 @@
 | 2026-10-26 | M1 三路调研产出；补本文件；更正指南病种编号 | 待 G1；`#33` → 第 7 病种 / 印刷页 33 |
 | 2026-10-26 | **G1 签认**（DESIGN-01–11）；**新增 G4**：手工 + AI 数据维护更新检查与通过（M5 出口执行，V3 复跑抽查；ACC-32–34） | M2 可开工；M5 出口与 M6 入口增加 G4 判据 |
 | 2026-10-26 | **M2 原型完成**：prototypes/v0.2（10 线/32 页/7 路径、双档案、双通道、34/35 号、30 号窄宽）；独立评审 P0=0、P1×12 已修复；check 全绿 + 探针 + 无头走查 | 待 G2 签认（签认物与 hash 见 docs/PROTOTYPE-REVIEW.md） |
+| 2026-10-26 | **摄取管线 + 图表反馈修复**：schema/0001 增 parse_job/candidate 两表（仍未冻结，随 G3 签认）；POST /parse（CSV/文本轻解析产候选，PDF/图片如实 FAILED 待 M5 MinerU）+ /candidates accept/reject；一图秀重做为小面板真实纵轴（修图表控件变形与归一化误导） | 上传/拍照/MinerU 链路的端点契约就位；G3 签认范围含新两表 |
 | 2026-10-26 | **数据层写入面**（用户指令）：schema/0001（14 表，G3 冻结候选）+ dsh/write-schema（12 kind 契约面）+ dsh/store（SQLite 主力+文件回退）+ 写端点全族 + saved-trials + bootstrap capabilities + check-write-schema/check-wording 入链；VERSION 0.2.0 | 待 G3 签认冻结；G4 的 ACC-32–34 有了可实测的写接口 |

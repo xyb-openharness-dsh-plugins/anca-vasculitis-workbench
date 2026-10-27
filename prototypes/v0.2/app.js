@@ -88,7 +88,7 @@ const SUBTITLES = {
 
 /* 各二级页描述（页头副标题由 render 集中提供，键 = view/sub） */
 const SUBDESC = {
-  'titer/trend': '滴度与肾功分轨展示：PR3 与 MPO 永不加总；各序列按自身范围归一化。',
+  'titer/trend': '滴度轨独立展示：PR3 与 MPO 分列、各自真实纵轴；肾功/尿检在「肌酐与尿检」页。',
   'titer/renal': '肾功轨与尿检轨并列展示；单位与参考区间随报告原文，本台不解读箭头。',
   'titer/labmeta': '每次检测的机构、方法与单位口径；跨院比较数值前先看这里。',
   'treatment/current': '按最近医嘱原文展示；剂量与疗程以主诊团队为准，本台零调整建议。',
@@ -117,7 +117,7 @@ const SUBDESC = {
   'records/profile': '主体与照护者；亚型/血清型只存原文，不判定。',
   'records/metrics': '本台登记的指标目录与轨道归属；只有数值型检验进趋势白名单。',
   'records/summary': '各线记录数统计；只数数，不判断。',
-  'oneshow/curves': '给医生看的同一段时间的数值；private 不出现，分类副作用不进来。',
+  'oneshow/curves': '每个指标一块独立面板、真实纵轴；private 不出现，分类副作用不进来。',
   'oneshow/events': '事件与滴度节点并列；两条轨分开画，不连线、不判定。',
   'oneshow/meta': '这一页给医生看之前，先说清数据怎么来的。'
 };
@@ -166,6 +166,7 @@ const state = {
   page: 'dashboard', sub: {},
   profileIdx: 0,
   chartSel: null,
+  chartRange: 'all',
   agent: { open: false, w: 35, prompt: null },
   actor: 'PATIENT',
   cfg: { root: '/Users/demo/Documents/VasPal（演示）', storeState: '就绪', defaultVisibility: 'normal' },
@@ -315,31 +316,76 @@ function sparkSVG(values, color) {
   const pts = vs.map((v, i) => `${8 + i * (184 / (vs.length - 1))},${48 - ((v - min) / span) * 38}`).join(' ');
   return `<svg class="spark" viewBox="0 0 200 56" preserveAspectRatio="none" aria-hidden="true"><path d="M${pts}" stroke="${color}"/></svg>`;
 }
+/* ---------------- 趋势图（小面板 · 各面板独立真实纵轴，不做归一化误导） ---------------- */
+function monotonePath(pts) {
+  if (pts.length < 2) return ''
+  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)]
+    const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6
+    const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6
+    d += `C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`
+  }
+  return d
+}
+function chartRangeButtons() {
+  const opts = [['all', '全部'], ['365', '近 1 年'], ['180', '近 6 个月']]
+  return `<div class="range-grp" role="group" aria-label="时间范围">${opts.map(([v, t]) =>
+    `<button data-action="chart-range" data-range="${v}" aria-pressed="${state.chartRange === v}">${t}</button>`).join('')}</div>`
+}
 function chartSVG(keys) {
-  const W = 860, H = 300, L = 44, R = 14, T = 16, B = 34;
-  const all = keys.flatMap((k) => allLabs(k).map((x) => ({ ...x, k })));
-  if (!all.length) return `<div class="empty">还没有数值记录</div>`;
-  const t0 = Date.parse(new Date(Math.min(...all.map((x) => Date.parse(x.d)))).toISOString().slice(0, 10));
-  const t1 = Date.parse(new Date(Math.max(...all.map((x) => Date.parse(x.d)))).toISOString().slice(0, 10));
-  const xOf = (d) => L + (Date.parse(d) - t0) / Math.max(1, t1 - t0) * (W - L - R);
-  const lines = keys.map((k) => {
-    const pts = allLabs(k);
-    if (pts.length < 1) return '';
-    const vs = pts.map((x) => x.v);
-    const min = Math.min(...vs), max = Math.max(...vs), span = (max - min) || 1;
-    const yOf = (v) => T + (1 - (v - min) / span) * (H - T - B);
-    const path = pts.map((x, i) => `${i ? 'L' : 'M'}${xOf(x.d).toFixed(1)},${yOf(x.v).toFixed(1)}`).join('');
-    const dots = pts.map((x) => `<circle cx="${xOf(x.d).toFixed(1)}" cy="${yOf(x.v).toFixed(1)}" r="3" fill="${MARKERS[k].color}"/>`).join('');
-    return `<path d="${path}" fill="none" stroke="${MARKERS[k].color}" stroke-width="2"/>${dots}`;
-  }).join('');
-  const years = []; for (let t = t0; t <= t1; t += 365 * DAY) years.push(new Date(t).toISOString().slice(0, 7));
-  const ticks = [...new Set(years)].map((ym) => `<text x="${xOf(ym + '-01')}" y="${H - 10}" text-anchor="middle">${ym}</text>`).join('');
-  const legend = keys.map((k) => `<span><i class="dot" style="background:${MARKERS[k].color}"></i>${MARKERS[k].name}（${TRACKS[MARKERS[k].track]}）</span>`).join('');
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="趋势图（各序列按自身范围归一化）">
-    ${[0, .5, 1].map((f) => `<line class="gridline" x1="${L}" x2="${W - R}" y1="${T + f * (H - T - B)}" y2="${T + f * (H - T - B)}"/>`).join('')}
-    <line class="axis" x1="${L}" x2="${L}" y1="${T}" y2="${H - B}"/><line class="axis" x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}"/>
-    ${ticks}${lines}</svg>
-    <div class="legend">${legend}<span class="muted">各序列按自身范围归一化，仅看走势；具体数值见表格。</span></div>`;
+  const cutoff = state.chartRange === 'all' ? null : isoShift(TODAY, -Number(state.chartRange))
+  const series = keys
+    .map((k) => ({ k, pts: allLabs(k).filter((x) => !cutoff || x.d >= cutoff) }))
+    .filter((s) => s.pts.length)
+  if (!series.length) return `<div class="empty">所选范围内还没有数值记录</div>`
+  const allDates = series.flatMap((s) => s.pts.map((x) => Date.parse(x.d)))
+  const t0 = Math.min(...allDates), t1 = Math.max(...allDates)
+  const W = 420, H = 190, L = 52, R = 14, T = 16, B = 30
+  const xOf = (t) => L + (t - t0) / Math.max(1, t1 - t0) * (W - L - R)
+  const fmtY = (v) => v >= 1000 ? Math.round(v).toString() : (Math.round(v * 10) / 10).toString()
+  const panels = series.map(({ k, pts }) => {
+    const m = MARKERS[k]
+    const vs = pts.map((x) => x.v)
+    const min = Math.min(...vs), max = Math.max(...vs)
+    const pad = (max - min) === 0 ? Math.max(1, Math.abs(max) * 0.1) : (max - min) * 0.12
+    let lo = min - pad, hi = max + pad
+    if (min >= 0) lo = Math.max(0, lo)   // 化验值非负：纵轴不下探负值
+    const yOf = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B)
+    const P = pts.map((x) => ({ x: xOf(Date.parse(x.d)), y: yOf(x.v), ...x }))
+    const path = monotonePath(P)
+    const area = P.length > 1 ? `${path}L${P[P.length - 1].x.toFixed(1)},${H - B}L${P[0].x.toFixed(1)},${H - B}Z` : ''
+    const dots = P.map((p) => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.2" fill="${m.color}"><title>${p.d} · ${p.v} ${p.unit}${p.lab ? ' · ' + p.lab : ''}</title></circle>`).join('')
+    const last = pts[pts.length - 1]
+    const midT = new Date((t0 + t1) / 2).toISOString().slice(0, 7)
+    return `<div class="chart-panel"><h4><i class="dot" style="background:${m.color}"></i><b>${esc(m.name)}</b>${pill(m.track + '轨', 'mist')}<small class="num">${esc(m.unitCtx)}</small></h4>
+    <svg class="panel-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(m.name)} 趋势（真实纵轴）">
+      ${[0, .5, 1].map((f) => `<line class="gridline" x1="${L}" x2="${W - R}" y1="${(T + f * (H - T - B)).toFixed(1)}" y2="${(T + f * (H - T - B)).toFixed(1)}"/>`).join('')}
+      <line class="axis" x1="${L}" x2="${L}" y1="${T}" y2="${H - B}"/><line class="axis" x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}"/>
+      ${area ? `<path d="${area}" fill="${m.color}" opacity="0.07"/>` : ''}
+      <path d="${path}" fill="none" stroke="${m.color}" stroke-width="2.2" stroke-linecap="round"/>${dots}
+      <text class="ylab" x="${L - 6}" y="${T + 8}" text-anchor="end">${fmtY(hi)}</text>
+      <text class="ylab" x="${L - 6}" y="${H - B}" text-anchor="end">${fmtY(lo)}</text>
+      <text class="ylab" x="${L - 6}" y="${T + 8 + (H - T - B) / 2}" text-anchor="end">${fmtY((lo + hi) / 2)}</text>
+      <text class="ylab" x="${L}" y="${H - 10}">${new Date(t0).toISOString().slice(0, 7)}</text>
+      <text class="ylab" x="${(L + (W - L - R) / 2).toFixed(1)}" y="${H - 10}" text-anchor="middle">${midT}</text>
+      <text class="ylab" x="${W - R}" y="${H - 10}" text-anchor="end">${new Date(t1).toISOString().slice(0, 7)}</text>
+      <text x="${(P[P.length - 1].x - 6).toFixed(1)}" y="${(P[P.length - 1].y - 8).toFixed(1)}" text-anchor="end" fill="${m.color}" font-size="11" font-weight="600">${fmtY(last.v)} ${esc(last.unit)}</text>
+    </svg><p class="small-note">n=${pts.length} · 纵轴为真实数值范围 · 悬停圆点看每次原值</p></div>`
+  }).join('')
+  return `<div class="chart-grid">${panels}</div>`
+}
+function chartControls(trackLock) {
+  let keys = Object.keys(MARKERS).filter((k) => allLabs(k).length)
+  if (trackLock) keys = keys.filter((k) => MARKERS[k].track === trackLock)
+  if (!state.chartSel || (trackLock && !state.chartSel.every((k) => MARKERS[k].track === trackLock)))
+    state.chartSel = [profile().serologyText.includes('PR3') ? 'PR3_ANCA' : 'MPO_ANCA'].filter((k) => keys.includes(k))
+  const groups = {}
+  keys.forEach((k) => { const tr = MARKERS[k].track; (groups[tr] = groups[tr] || []).push(k) })
+  return `<div class="chart-controls">${Object.entries(groups).map(([tr, ks]) =>
+    `<fieldset class="track-group"><legend>${esc(TRACKS[tr])}</legend>${ks.map((k) =>
+      `<label class="opt"><input type="checkbox" data-action="chart-sel" value="${k}" ${state.chartSel.includes(k) ? 'checked' : ''}>${esc(MARKERS[k].name)}</label>`).join('')}</fieldset>`).join('')}
+  </div>`
 }
 
 /* ---------------- 看板 ---------------- */
@@ -395,18 +441,6 @@ function pageDashboard() {
 const sceneLabel = (id) => (SCENES.find((s) => s.id === id) || {}).label || id;
 
 /* ---------------- 滴度与肾功时间线 ---------------- */
-function chartControls(trackLock) {
-  let keys = Object.keys(MARKERS).filter((k) => allLabs(k).length);
-  if (trackLock) keys = keys.filter((k) => MARKERS[k].track === trackLock);
-  if (!state.chartSel || (trackLock && !state.chartSel.every((k) => MARKERS[k].track === trackLock)))
-    state.chartSel = [profile().serologyText.includes('PR3') ? 'PR3_ANCA' : 'MPO_ANCA'].filter((k) => keys.includes(k));
-  const groups = {};
-  keys.forEach((k) => { const tr = MARKERS[k].track; (groups[tr] = groups[tr] || []).push(k); });
-  return `<div class="chart-controls">${Object.entries(groups).map(([tr, ks]) =>
-    `<span class="grp"><span class="track-badge">${esc(TRACKS[tr])}</span>${ks.map((k) =>
-      `<label><input type="checkbox" data-action="chart-sel" value="${k}" ${state.chartSel.includes(k) ? 'checked' : ''}>${esc(MARKERS[k].name)}</label>`).join('')}</span>`).join('')}
-  </div>`;
-}
 function pageTiterTrend() {
   return `<div class="notice plain" style="margin-bottom:12px">数值变化不等于结论：是否复发、是否调药，由主诊团队判断（T1）。</div>`
     + chartControls('滴度') + chartSVG(state.chartSel || [])
@@ -816,6 +850,7 @@ document.addEventListener('click', (e) => {
     'actor-toggle': () => { state.actor = state.actor === 'PATIENT' ? 'FAMILY' : 'PATIENT'; renderProfileChip(); render(); toast(state.actor === 'FAMILY' ? '已切换为「替家人记」：条目将标为家属代记' : '已切换回本人自记'); },
     'more-close': () => {},
     'chart-sel': () => { /* change 事件处理 */ },
+    'chart-range': () => { state.chartRange = t.dataset.range; render(); },
     'cand-accept': () => { const row = t.closest('.cand'); row.classList.add('accepted'); row.classList.remove('rejected'); },
     'cand-reject': () => { const row = t.closest('.cand'); row.classList.add('rejected'); row.classList.remove('accepted'); toast('已拒收：未写入任何数据（零副作用）'); },
     'cand-all-reject': () => { closeModal(); toast('已全部拒收：未写入任何数据（零副作用）'); },

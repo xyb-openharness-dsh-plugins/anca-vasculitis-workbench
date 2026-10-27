@@ -19,7 +19,8 @@
  * 鉴权不在这里：宿主链路由 dsh/index.js 先过 connection.requestRejection。
  * 这里不许 import Schemastery。
  */
-import { WRITE_KINDS, WRITE_KIND_KEYS, DENY_COLUMNS, SCHEMA_VERSION } from './write-schema.js'
+import { createHash } from 'node:crypto'
+import { WRITE_KINDS, WRITE_KIND_KEYS, DENY_COLUMNS, SCHEMA_VERSION, MARKER_NAMES } from './write-schema.js'
 
 export const API_PREFIX = '/api/anca-vasculitis'
 
@@ -60,10 +61,96 @@ function statusForError(error) {
   if (code === 'BODY_TOO_LARGE') return 413
   if (code === 'BODY_JSON_INVALID') return 400
   if (code === 'ROW_NOT_FOUND') return 404
+  if (code === 'CANDIDATE_DECIDED') return 409
   if (typeof code === 'string' && code.startsWith('SCHEMA_')) return 400
   if (code === 'NOT_VERSIONED') return 400
   if (code === 'PATH_REQUIRED' || code === 'SCHEMA_DIR_MISSING' || code === 'SCHEMA_NAME_INVALID' || code === 'MIGRATION_FAILED' || code === 'OPEN_FAILED' || code === 'SCHEMA_VERSION_MISMATCH') return 503
   return 500
+}
+
+/* ---------------- 摄取管线（18 号 v2 前置）：文件/拍照/文本 → parse_job → 候选 ----------------
+ * 内置轻解析只做诚实的小事：纯文本/Markdown/CSV 抽取为候选；PDF/图片在本阶段如实返回
+ * FAILED(PARSER_UNAVAILABLE)——真 MinerU 六部件在 M5 接入，FAILED 不计覆盖、不冒充已解析。
+ * 候选确认走 /candidates/:id/accept → 同一 insert 写事实层（IP9）。 */
+const TEXT_EXTS = new Set(['.txt', '.md', '.markdown', '.csv'])
+const NEEDS_MINERU = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.heic', '.tiff', '.doc', '.docx'])
+
+function parseCsvToLabCandidates(text, { profileId, recorder }) {
+  const out = []
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  for (const line of lines) {
+    if (/^(日期|date)/i.test(line)) continue   // 表头行
+    const cells = line.split(/[,，\t]/).map((c) => c.trim())
+    if (cells.length < 4) continue
+    const [d, nameRaw, valueRaw, unit, lab] = cells
+    const marker = MARKER_NAMES[nameRaw] || MARKER_NAMES[nameRaw.replace(/\s+/g, '')]
+    if (!marker) continue
+    const value = Number(valueRaw)
+    if (!Number.isFinite(value) || !/\d{4}-\d{2}-\d{2}/.test(d)) continue
+    out.push({ profile_id: profileId, marker, value, unit: unit || '', measured_at: d, lab_name: lab || '', report_quote: line, recorder: recorder || 'PATIENT', source_kind: 'import' })
+  }
+  return out
+}
+
+async function handleParse(req, res, source, url) {
+  const body = await safeBody(req, res); if (body === null) return
+  const profileId = body.profileId
+  if (!profileId) return sendJson(res, 400, { error: 'VALIDATION_FAILED', message: 'profileId 必填' })
+  const filename = String(body.filename || '粘贴文本.txt')
+  const mime = String(body.mime || '')
+  const recorder = CHECKS_OK.recorder.includes(body.recorder) ? body.recorder : 'PATIENT'
+  let buf = null
+  let text = null
+  if (typeof body.text === 'string') {
+    text = body.text
+    buf = Buffer.from(text, 'utf8')
+  } else if (typeof body.contentBase64 === 'string') {
+    buf = Buffer.from(body.contentBase64, 'base64')
+    text = buf.toString('utf8')
+  } else {
+    return sendJson(res, 400, { error: 'VALIDATION_FAILED', message: '提供 text 或 contentBase64 之一' })
+  }
+  if (buf.length > 10 * 1024 * 1024) return sendJson(res, 413, { error: 'BODY_TOO_LARGE', message: '文件超过 10MB（真机走资料目录导入，不经接口塞字节）' })
+
+  const dot = filename.lastIndexOf('.')
+  const ext = dot >= 0 ? filename.slice(dot).toLowerCase() : ''
+  const docType = CHECKS_OK.doc_type.includes(body.docType) ? body.docType : '其他'
+  const doc = source.insert('document', {
+    profile_id: profileId, name: filename, doc_type: docType, doc_date: body.docDate || new Date().toISOString().slice(0, 10),
+    sha256: createHash('sha256').update(buf).digest('hex'), report_quote: (text || '').slice(0, 300) || null, recorder, visibility: 'normal',
+  })
+
+  if (NEEDS_MINERU.has(ext) || /pdf|image/i.test(mime)) {
+    const job = source.createParseJob({ profileId, documentId: doc.id, sourceKind: ext === '.pdf' ? 'file' : 'photo', filename, mime, sizeBytes: buf.length, status: 'failed', errorCode: 'PARSER_UNAVAILABLE', errorText: 'PDF/图片解析需要 MinerU 六部件（M5 接入）；本阶段如实记录 FAILED，不冒充已解析' })
+    return sendJson(res, 202, { job, document: doc, candidates: [], note: '已存原件并登记解析任务（FAILED 如实）；M5 接 MinerU 后同一端点产出候选' })
+  }
+  if (!TEXT_EXTS.has(ext)) {
+    const job = source.createParseJob({ profileId, documentId: doc.id, sourceKind: 'file', filename, mime, sizeBytes: buf.length, status: 'unsupported', errorText: `暂不支持的类型：${ext || '(无扩展名)'}` })
+    return sendJson(res, 202, { job, document: doc, candidates: [] })
+  }
+
+  const job = source.createParseJob({ profileId, documentId: doc.id, sourceKind: ext === '.csv' ? 'file' : 'text', filename, mime, sizeBytes: buf.length, status: 'queued' })
+  let candidates = []
+  try {
+    if (ext === '.csv') {
+      const rows = parseCsvToLabCandidates(text, { profileId, recorder })
+      candidates = rows.map((r) => source.createCandidate({ profileId, parseJobId: job.id, kind: 'lab', payload: r, quoteText: r.report_quote }))
+    } else {
+      const snippet = text.replace(/\s+/g, ' ').trim().slice(0, 400)
+      candidates = snippet ? [source.createCandidate({ profileId, parseJobId: job.id, kind: 'note', payload: { profile_id: profileId, note_date: body.docDate || new Date().toISOString().slice(0, 10), text: snippet, recorder, visibility: 'normal' }, quoteText: snippet.slice(0, 120) })] : []
+    }
+    source.finishParseJob(job.id, 'parsed')
+  } catch (error) {
+    source.finishParseJob(job.id, 'failed', error.code || 'PARSE_FAILED', error.message)
+    return sendJson(res, 202, { job: source.getParseJob(job.id), document: doc, candidates, note: '解析部分失败（如实）' })
+  }
+  return sendJson(res, 201, { job: source.getParseJob(job.id), document: doc, candidates })
+}
+
+/** 路由内部用的枚举表（与 WRITE_KINDS.checks 同源，避免 import Schemastery） */
+const CHECKS_OK = {
+  recorder: ['PATIENT', 'FAMILY'],
+  doc_type: ['检查报告', '病理报告', '影像报告', '门诊记录', '出院记录', '住院记录', '处方', '个人材料', '其他'],
 }
 
 /**
@@ -101,12 +188,42 @@ export function createApiHandler({ source, version, build, failure }) {
           note: 'AI 候选入库与手工编辑走同一写接口、同一列映射、同一更正链（IP9）；deny 列永不接受（T1）。'
         },
         endpoints: [
-          'GET  /health', 'GET  /bootstrap',
+          'GET  /health', 'GET  /bootstrap', 'POST /parse（文件/拍照/文本 → 候选；PDF/图片 M5 接 MinerU）',
+          'GET  /candidates', 'POST /candidates/:id/accept', 'POST /candidates/:id/reject',
           ...WRITE_KIND_KEYS.map((k) => `POST /records/${k}`),
           ...WRITE_KIND_KEYS.map((k) => `GET  /records/${k}`),
           'POST /saved-trials', 'DELETE /saved-trials', 'GET /saved-trials'
         ]
       })
+    }
+
+    if (path === `${API_PREFIX}/parse`) {
+      if (method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' })
+      return handleParse(req, res, source, url)
+    }
+
+    if (path === `${API_PREFIX}/candidates`) {
+      if (method === 'GET') {
+        const profileId = url.searchParams.get('profileId') || undefined
+        const status = url.searchParams.get('status') || undefined
+        return sendJson(res, 200, { rows: source.listCandidates({ profileId, status }) })
+      }
+      return sendJson(res, 405, { error: 'Method not allowed' })
+    }
+
+    const candMatch = path.match(new RegExp(`^${API_PREFIX}/candidates/([^/]+)/(accept|reject)$`))
+    if (candMatch) {
+      if (method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' })
+      try {
+        const result = candMatch[2] === 'accept'
+          ? source.acceptCandidate(candMatch[1])
+          : { candidate: source.rejectCandidate(candMatch[1]) }
+        return sendJson(res, 200, result)
+      } catch (error) {
+        const status = statusForError(error)
+        if (status === 500) throw error
+        return sendJson(res, status, { error: error.code || 'CANDIDATE_FAILED', message: error.message })
+      }
     }
 
     if (path === `${API_PREFIX}/saved-trials`) {

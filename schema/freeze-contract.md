@@ -1,7 +1,7 @@
 # schema 冻结合同 · 小脉宝 VasPal（ANCA 相关血管炎）· G3 候选 · 2026-10-26
 
-- 文件：`0001_initial.sql`（13 表：档案级 2 + 事实可写 9 + 摘要/问题/记录 3 + 收藏 1 —— 以文件内实际 CREATE TABLE 为准）
-- sha256：`11381c58306cd23b451309e45da3c9eeebf79a806f569a7c10ffaf1c03e19bcb`
+- 文件：`0001_initial.sql`（16 表：档案级 2 + 事实可写 9 + 摘要/问题/记录 3 + 收藏 1 —— 以文件内实际 CREATE TABLE 为准）
+- sha256：`98bb769eafedff39d702dff66744f398dcf2131b918eeb6cbca1f3f5fde74492`
 - **状态：G3 冻结候选——用户签认前不视为冻结**。签认后本文件哈希不得变动；结构变更只能新增 `000N_*.sql`。
 
 ## 冻结断言（将随 G3 一并实测，node:sqlite 内存加载）
