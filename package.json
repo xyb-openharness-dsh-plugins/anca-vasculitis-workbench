@@ -1,6 +1,6 @@
 {
   "name": "@xyb-community/anca-vasculitis-workbench",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "面向 ANCA 相关血管炎患者与照护者的本机病程资料工作台：ANCA 滴度（PR3/MPO）时间线、复发事件档案、免疫抑制用药版本链、激素副作用分节轨道",
   "private": true,
   "type": "module",
@@ -15,11 +15,12 @@
     "dsh",
     "lib",
     "assets",
+    "public",
+    "schema",
+    "research",
     "cordis.patch.yml",
     "README.md",
-    "NOTICE.md",
-    "schema",
-    "research"
+    "NOTICE.md"
   ],
   "scripts": {
     "check": "node --check dsh/index.js && node --check lib/client.js && node scripts/check-workbench-package.mjs . && node scripts/check-host-contract.mjs && node scripts/smoke-activate.mjs && node scripts/check-probe-coverage.mjs && node scripts/check-version-literal.mjs && node scripts/check-static-refs.mjs && node scripts/check-choice-limit.mjs && node scripts/check-schema-freeze.mjs && node scripts/check-write-schema.mjs && node scripts/check-wording.mjs . && node --test test/*.test.mjs",
@@ -38,7 +39,11 @@
     "probe:page-view": "node scripts/probe-page-view.mjs",
     "check:primer": "node scripts/probe-disease-primer.mjs --url http://127.0.0.1:8251/index.html",
     "fetch:trials": "node scripts/fetch-anca-trials-2026.mjs",
-    "fetch:trials:dry": "node scripts/fetch-anca-trials-2026.mjs --dry-run"
+    "fetch:trials:dry": "node scripts/fetch-anca-trials-2026.mjs --dry-run",
+    "build:public": "node scripts/build-public.mjs",
+    "build:client": "node scripts/build-client.mjs",
+    "build": "node scripts/build-public.mjs && node scripts/build-client.mjs",
+    "serve": "node scripts/serve-dev.mjs"
   },
   "dsh": {
     "bundle": {

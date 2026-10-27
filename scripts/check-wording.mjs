@@ -41,10 +41,29 @@ for (const file of files) {
   const src = readFileSync(file, 'utf8')
   const rel = relative(ROOT, file)
   src.split('\n').forEach((line, i) => {
+    /* 注释行（含块注释内的 *）不是面向用户的文案：词表本身要靠它声明，跳过；
+       但**代码里的字符串**出现禁用词仍然报红（那才是用户能看到的）。 */
+    const bare = line.trim()
+    if (bare.startsWith('//') || bare.startsWith('*') || bare.startsWith('/*')) return
+    /* 否定语境白名单：如「不写'升高说明复发'」「≠ 复发预告」「不含 match_score」——
+       这类是声明"我们不做什么"，不是违规文案本身。 */
+    /* 只认**紧邻**否定标记：禁用词前 12 字符内出现「不/禁/零/无/≠/不含」才豁免。
+       整行含"不"就放过太松——「滴度回升说明复发风险高」里也有"不"字（"说明"不含，但同类句会漏）。 */
+    const NEG = /(不含|不出现|不写|不建立|不产出|不得|禁止|零判读|不算|≠|[不禁零无])/
+    const isNegation = (w) => {
+      const idx = line.indexOf(w)
+      if (idx < 0) return false
+      /* 向前找到最近一个句读（，。；、:）为止的同句片段；片段内有否定标记才算声明句。
+         这样「不含 match_score/eligible」能豁免，「滴度回升说明复发风险高」不会。 */
+      const head = line.slice(0, idx)
+      const cut = Math.max(...['，', '。', '；', '、', ':', '）', ')'].map((c) => head.lastIndexOf(c)))
+      const seg = head.slice(cut + 1)
+      return NEG.test(seg)
+    }
     for (const w of WORDS) {
       /* write-schema.js 的 DENY_COLUMNS 声明本身是红线契约的机器载体，放行纯列名词 */
       if (rel.endsWith('write-schema.js') && /^[a-z_]+$/.test(w)) continue
-      if (line.includes(w) && !ALLOW.some((a) => line.includes(a))) {
+      if (line.includes(w) && !isNegation(w) && !ALLOW.some((a) => line.includes(a))) {
         hits.push(`${rel}:${i + 1}  「${w}」  ${line.trim().slice(0, 90)}`)
       }
     }

@@ -130,3 +130,6 @@ export const MARKER_NAMES = {
 
 /** orgsns/JSON 字段：store 在写入前做 JSON.parse 校验 */
 export const JSON_COLUMNS = new Set(['organs', 'terms', 'items'])
+
+/** 由 store 自动维护的审计时间列（写映射里不出现，也不许调用方传） */
+export const AUDIT_TIMESTAMP_KINDS = new Set(['question'])

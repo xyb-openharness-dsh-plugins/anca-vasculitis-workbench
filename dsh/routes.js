@@ -22,6 +22,7 @@
 import { createHash } from 'node:crypto'
 import { WRITE_KINDS, WRITE_KIND_KEYS, DENY_COLUMNS, SCHEMA_VERSION, MARKER_NAMES } from './write-schema.js'
 import { snapshotMeta, trialMatches } from './trials.js'
+import { bootstrap } from './readmodels.js'
 
 export const API_PREFIX = '/api/anca-vasculitis'
 
@@ -159,7 +160,7 @@ const CHECKS_OK = {
  * @param {{insert:Function, correct:Function, list:Function, saveTrial:Function,
  *          unsaveTrial:Function, listSavedTrials:Function, capabilities:Function, close:Function}} opts.source
  */
-export function createApiHandler({ source, version, build, failure }) {
+export function createApiHandler({ source, version, build, failure, serveUi }) {
   return async function api(req, res) {
     const url = new URL(req.url, 'http://local')
     const path = url.pathname.replace(/\/+$/, '') || '/'
@@ -176,10 +177,21 @@ export function createApiHandler({ source, version, build, failure }) {
 
     if (failure) return sendJson(res, 503, { error: 'STORE_OPEN_FAILED', message: failure })
 
+    /* UI 静态（public/）：/ui/ 前缀交给 serveUi；缺它时回 404 JSON，不返回 HTML */
+    if (path === `${API_PREFIX}/ui` || path.startsWith(`${API_PREFIX}/ui/`)) {
+      if (method !== 'GET' && method !== 'HEAD') return sendJson(res, 405, { error: 'Method not allowed' })
+      if (!serveUi) return sendJson(res, 404, { error: 'UI_NOT_BUILT', hint: 'public/ 未生成：先跑 node scripts/build-public.mjs' })
+      /* 传 /ui/ 之后的相对路径（'/app.js'）；servePublic 内部再拼 public/ */
+      const rel = url.pathname.slice(`${API_PREFIX}/ui`.length) || '/'
+      return serveUi(req, res, rel)
+    }
+
     if (path === `${API_PREFIX}/bootstrap`) {
       if (method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' })
       const cap = source.capabilities()
+      const model = bootstrap(source, { version, build })
       return sendJson(res, 200, {
+        ...model,
         version, build, apiVersion: 'v1', schemaVersion: SCHEMA_VERSION,
         storage: cap.storage,
         write: {

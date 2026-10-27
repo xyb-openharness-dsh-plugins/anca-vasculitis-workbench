@@ -19,7 +19,7 @@
    全站无裸删除文案（IP8）：更正 = 新增版本，旧版本永远可查（IP9）。 */
 
 const APP_INFO = {
-  version: '0.2.2', build: '2026-10-27',
+  version: '0.2.3', build: '2026-10-27',
   channelLabel: '交互原型 · 未接入 DSH / AI',
   brand: '小脉宝 VasPal', en: 'anca-vasculitis', proto: 'anca'
 };
@@ -172,6 +172,23 @@ const state = {
   cfg: { root: '/Users/demo/Documents/VasPal（演示）', storeState: '就绪', defaultVisibility: 'normal' },
   mem: { labs: [], events: [], treatments: [], sideEffects: [], docs: [], questions: null, candidates: [], summaries: [], followups: [], tolerance: [], profiles: {} }
 };
+/* 写入适配层（M5）：原型只写内存；开发版由 scripts/build-public.mjs 注入服务端实现。
+   两条通道（手工表单 / AI 候选确认）都走这里 —— 同源写同一事实层（IP9）。 */
+let PERSIST = null;
+async function persist(kind, payload) {
+  if (typeof PERSIST === 'function') {
+    try {
+      const res = await PERSIST(kind, payload);
+      if (res && res.ok === false) { toast('未保存：' + (res.error || '服务端拒绝')); return false; }
+      return true;
+    } catch (e) {
+      toast('未保存：本机服务不可达（' + String(e.message || e).slice(0, 40) + '）');
+      return false;
+    }
+  }
+  return true;
+}
+
 const mem = () => state.mem;
 const profile = () => DATA.profiles[state.profileIdx] || { name: '演示', labs: {}, notes: [], documents: [] };
 const added = (k) => { if (!mem()[k]) mem()[k] = []; return mem()[k]; };
@@ -933,7 +950,17 @@ document.addEventListener('change', (e) => {
   if (t) {
     const k = t.value;
     const set = new Set(state.chartSel || []);
-    if (t.checked) set.add(k); else if (set.size > 1) set.delete(k); else { t.checked = true; toast('至少保留一条序列（先勾上另一条再取消）'); }
+    if (t.checked) {
+      set.add(k);
+    } else if (set.size > 1) {
+      set.delete(k);
+    } else {
+      /* 下限分支必须"说 + 改回去 + 重渲染"：回滚勾选再提示，避免界面 N+1 而数据只有 N */
+      t.checked = true;
+      toast('至少保留一条序列（先勾上另一条再取消）');
+      render();
+      return;
+    }
     state.chartSel = [...set];
     render();
   }
@@ -1020,12 +1047,13 @@ function formLab() {
     field('报告原句', `<textarea id="f-quote" rows="2" placeholder="照抄化验单原文"></textarea>`, true)
   ], 'save-lab');
 }
-function saveLab() {
+async function saveLab() {
   const marker = $('#f-marker').value, kv = $('#kv-lab');
   const v = Number(kv?.dataset.value || NaN);
   if (Number.isNaN(v)) { toast('数值还没输（键盘输入）；未保存'); return; }
   const dupDate = $('#f-date').value || TODAY;
   if (allLabs(marker).some((x) => x.d === dupDate)) { toast('该指标同日已有记录；如需更正请另记一条并注明原因（未保存本条）'); return; }
+  if (!(await persist('lab', { profile_id: profile().id, marker, value: v, unit: $('#f-unit').value.trim() || '—', measured_at: dupDate, lab_name: $('#f-lab').value.trim() || null, report_quote: $('#f-quote').value.trim(), recorder: state.actor, visibility: 'normal', source_kind: 'manual' }))) return;
   added('labs').push({ id: uid('l'), marker, v, unit: $('#f-unit').value.trim() || '—', d: $('#f-date').value || TODAY, lab: $('#f-lab').value.trim(), quote: $('#f-quote').value.trim(), recorder: state.actor });
   closeModal(); toast('化验已记录（值+单位+日期+原句，无判定）', { cta: { text: '回到看板', action: 'go', page: 'dashboard' } }); navigate('titer', 'trend');
 }
@@ -1038,9 +1066,10 @@ function formEvent() {
     field('就诊科室', `<input id="f-dept" placeholder="如：风湿科 / 肾内科">`, false)
   ], 'save-event');
 }
-function saveEvent() {
+async function saveEvent() {
   const organs = $$('.f-organ:checked').map((x) => x.value);
   if (!organs.length) { toast('至少选一个受累器官；未保存'); return; }
+  if (!(await persist('relapse', { profile_id: profile().id, event_date: $('#f-date').value || TODAY, organs, symptoms_text: $('#f-sym').value.trim(), confirmation_text: $('#f-confirm').value.trim() || null, department: $('#f-dept').value.trim() || null, recorder: state.actor, visibility: 'normal', source_kind: 'manual' }))) return;
   added('events').push({ id: uid('re'), d: $('#f-date').value || TODAY, organs, symptoms: $('#f-sym').value.trim(), confirm: $('#f-confirm').value.trim(), dept: $('#f-dept').value.trim() || '—', recorder: state.actor });
   closeModal(); toast('事件已记录（依据原文，不判定是否复发）', { cta: { text: '回到看板', action: 'go', page: 'dashboard' } }); navigate('relapse', 'events');
 }
@@ -1054,9 +1083,10 @@ function formTreat() {
     field('来源单据', `<input id="f-src" placeholder="如：风湿科门诊记录 2026-10-26">`, false)
   ], 'save-treat');
 }
-function saveTreat() {
+async function saveTreat() {
   if (!$('#f-drug').value.trim()) { toast('药名必填；未保存'); return; }
   if (!$('#f-date').value) { toast('开始日期必填（缺日期按"待补"处理：请补日期后再保存）；未保存'); return; }
+  if (!(await persist('treatment', { profile_id: profile().id, drug: $('#f-drug').value.trim(), dose_text: $('#f-dose').value.trim(), route: $('#f-route').value, start_date: $('#f-date').value, change_reason_text: $('#f-reason').value.trim() || null, source_label: $('#f-src').value.trim() || null, recorder: state.actor, visibility: 'normal', source_kind: 'manual' }))) return;
   added('treatments').push({ id: uid('t'), drug: $('#f-drug').value.trim(), dose: $('#f-dose').value.trim(), route: $('#f-route').value, start: $('#f-date').value || TODAY, end: '', reason: $('#f-reason').value.trim(), source: $('#f-src').value.trim(), recorder: state.actor });
   closeModal(); toast('用药版本已新增（旧版本保留可查）', { cta: { text: '回到看板', action: 'go', page: 'dashboard' } }); navigate('treatment', 'dosechain');
 }
@@ -1070,8 +1100,9 @@ function formSide(sectionKey) {
   ], 'save-side');
   state._sideSection = sectionKey;
 }
-function saveSide() {
+async function saveSide() {
   if (!$('#f-text').value.trim()) { toast('症状/事项必填；未保存'); return; }
+  if (!(await persist('side-effect', { profile_id: profile().id, section: state._sideSection || 'bone', event_date: $('#f-date').value || TODAY, symptom_text: $('#f-text').value.trim(), report_quote: $('#f-quote').value.trim() || null, test_text: $('#f-src').value.trim() || null, recorder: state.actor, visibility: state._vis || 'normal', source_kind: 'manual' }))) return;
   added('sideEffects').push({ id: uid('s'), d: $('#f-date').value || TODAY, text: $('#f-text').value.trim(), quote: $('#f-quote').value.trim(), src: $('#f-src').value.trim(), section: state._sideSection || 'bone', recorder: state.actor, visibility: state._vis || 'normal' });
   state._vis = null;
   closeModal(); toast('副作用条目已记录（分节存放，不进趋势）', { cta: { text: '回到看板', action: 'go', page: 'dashboard' } }); navigate('sideeffect', state._sideSection || 'bone');
@@ -1084,8 +1115,9 @@ function formTolerance() {
     field('来源单据', `<input id="f-src">`, false)
   ], 'save-tolerance');
 }
-function saveTolerance() {
+async function saveTolerance() {
   if (!$('#f-quote').value.trim()) { toast('原文必填；未保存'); return; }
+  if (!(await persist('tolerance', { profile_id: profile().id, note_date: $('#f-date').value || TODAY, drug_hint: $('#f-drug').value.trim() || null, quote_text: $('#f-quote').value.trim(), recorder: state.actor, visibility: 'normal', source_kind: 'manual' }))) return;
   added('tolerance').push({ id: uid('to'), d: $('#f-date').value || TODAY, text: $('#f-drug').value.trim() || '用药期间', quote: $('#f-quote').value.trim(), src: $('#f-src').value.trim(), recorder: state.actor });
   closeModal(); toast('耐受记录已保存', { cta: { text: '回到看板', action: 'go', page: 'dashboard' } }); navigate('treatment', 'tolerance');
 }
@@ -1099,8 +1131,9 @@ function formDoc(type) {
   ], 'save-doc');
   if (type) setTimeout(() => { const s = $('#f-type'); if (s) [...s.options].forEach((o) => { if (o.text === type) s.value = o.value; }); }, 0);
 }
-function saveDoc() {
+async function saveDoc() {
   if (!$('#f-name').value.trim()) { toast('名称必填；未保存'); return; }
+  if (!(await persist('document', { profile_id: profile().id, name: $('#f-name').value.trim(), doc_type: $('#f-type').value, doc_date: $('#f-date').value || TODAY, report_quote: $('#f-quote').value.trim() || null, recorder: state.actor, visibility: state._vis || 'normal' }))) return;
   added('docs').push({ id: uid('d'), name: $('#f-name').value.trim(), type: $('#f-type').value, d: $('#f-date').value || TODAY, quote: $('#f-quote').value.trim(), visibility: state._vis || 'normal' });
   state._vis = null;
   closeModal(); toast('资料已入库（原件在真机中保留在本机资料目录）', { cta: { text: '回到看板', action: 'go', page: 'dashboard' } }); navigate('records', 'library');
@@ -1110,8 +1143,9 @@ function formQuestion() {
     field('问题', `<textarea id="f-q" rows="2" placeholder="复诊时想问什么"></textarea>`, true)
   ], 'save-question');
 }
-function saveQuestion() {
+async function saveQuestion() {
   if (!$('#f-q').value.trim()) { toast('问题必填；未保存'); return; }
+  if (!(await persist('question', { profile_id: profile().id, text: $('#f-q').value.trim(), status: 'open', recorder: state.actor, visibility: 'normal' }))) return;
   questions().push({ id: uid('q'), text: $('#f-q').value.trim(), status: 'open' });
   closeModal(); toast('问题已加入清单', { cta: { text: '回到看板', action: 'go', page: 'dashboard' } }); navigate('visit', 'questions');
 }
@@ -1124,8 +1158,9 @@ function formFollow() {
     field('医嘱原文', `<textarea id="f-quote" rows="2" placeholder="节奏以医嘱原文为准"></textarea>`, false)
   ], 'save-follow');
 }
-function saveFollow() {
+async function saveFollow() {
   if (!$('#f-dept').value.trim()) { toast('科室必填；未保存'); return; }
+  if (!(await persist('followup', { profile_id: profile().id, department: $('#f-dept').value.trim(), planned_date: $('#f-date').value || null, items_text: $('#f-items').value.trim() || null, bring_text: $('#f-bring').value.trim() || null, source_text: $('#f-quote').value.trim() || '本次登记（医嘱原文）', recorder: state.actor, visibility: 'normal' }))) return;
   const p = profile();
   p.upcoming = p.upcoming || [];
   p.upcoming.unshift({ id: uid('up'), d: $('#f-date').value || TODAY, dept: $('#f-dept').value.trim(), items: $('#f-items').value.trim(), bring: $('#f-bring').value.trim() });
@@ -1142,8 +1177,9 @@ function formProfile() {
     field('照护者', `<input id="f-cg" value="${esc(p.caregiverLabel)}">`, false)
   ], 'save-profile');
 }
-function saveProfile() {
+async function saveProfile() {
   const p = profile();
+  if (!(await persist('profile', { id: p.id, name: $('#f-name').value.trim() || p.name, subtype_text: $('#f-sub').value.trim() || null, serology_text: $('#f-sero').value.trim() || null, caregiver_label: $('#f-cg').value.trim() || null }))) return;
   p.name = $('#f-name').value.trim() || p.name;
   p.age = Number($('#kv-age')?.dataset.value || p.age);
   p.subtypeText = $('#f-sub').value.trim();

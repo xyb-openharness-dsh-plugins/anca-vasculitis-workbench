@@ -17,7 +17,7 @@
 import { mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync, existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { SCHEMA_VERSION, WRITE_KINDS, DENY_COLUMNS, JSON_COLUMNS, WRITE_KIND_KEYS } from './write-schema.js'
+import { SCHEMA_VERSION, WRITE_KINDS, DENY_COLUMNS, JSON_COLUMNS, WRITE_KIND_KEYS, AUDIT_TIMESTAMP_KINDS } from './write-schema.js'
 
 export const SCHEMA_DIR = fileURLToPath(new URL('../schema/', import.meta.url))
 const MIGRATION_RE = /^(\d{4})_[a-z0-9_]+\.sql$/
@@ -38,7 +38,13 @@ export class WriteError extends StoreError {}
 
 /** 校验 + 整形一行数据；非法列/枚举/JSON 抛 WriteError（code 供路由翻译成 4xx）。 */
 /** store 管理的审计列：不进映射校验（correct() 合并旧行时会带上），但 deny 检查仍然生效 */
-export const AUDIT_COLUMNS = ['id', 'revision', 'in_use', 'created_at']
+export const AUDIT_COLUMNS = ['id', 'revision', 'in_use', 'created_at', 'updated_at']
+
+/** 审计时间列：question 表带 updated_at NOT NULL，由 store 统一填，调用方不必传（schema 已冻结，不加列） */
+function withAuditTimes(kind, row, now) {
+  if (AUDIT_TIMESTAMP_KINDS.has(kind)) row.updated_at = now
+  return row
+}
 
 export function validateRow(kind, data) {
   const spec = WRITE_KINDS[kind]
@@ -131,6 +137,7 @@ function createSqliteStore({ path, DatabaseSync, id }) {
     const row = validateRow(kind, data)
     row.id = row.id || newId(kind.replace(/-/g, '_'))
     row.created_at = nowIso()
+    withAuditTimes(kind, row, row.created_at)
     if (s.versioned) { row.revision = 1; row.in_use = 1 }
     const cols = Object.keys(row)
     db.prepare(`INSERT INTO ${s.table} (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`)
@@ -146,6 +153,7 @@ function createSqliteStore({ path, DatabaseSync, id }) {
     const merged = validateRow(kind, { ...old, ...patch })
     db.prepare(`UPDATE ${s.table} SET in_use = 0 WHERE id = ?`).run(id)
     const row = { ...merged, id: newId(kind.replace(/-/g, '_')), revision: old.revision + 1, in_use: 1, created_at: nowIso() }
+    withAuditTimes(kind, row, row.created_at)
     const cols = Object.keys(row)
     db.prepare(`INSERT INTO ${s.table} (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`)
       .run(...cols.map((c) => row[c]))
@@ -278,6 +286,7 @@ function createFileStore({ path, id }) {
     const row = validateRow(kind, data)
     row.id = row.id || newId(kind.replace(/-/g, '_'))
     row.created_at = nowIso()
+    withAuditTimes(kind, row, row.created_at)
     if (s.versioned) { row.revision = 1; row.in_use = 1 }
     if (s.upsert) {
       const idx = rowsOf(s.table).findIndex((r) => r.id === row.id)

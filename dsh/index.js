@@ -8,7 +8,7 @@
  *    node:sqlite 不可用或开库失败时，dsh/store.js 自动回退 JSON 文件存储并如实上报模式；
  * 2. 过宿主鉴权（connection.requestRejection），不自己造登录；
  * 3. 把请求交给 dsh/routes.js 那张两条链路共用的路由表
- *    （/health、/bootstrap、/records/:kind 全族、/saved-trials）；
+ *    （/health、/bootstrap、/ui/ 静态、/records/:kind 全族、/trials、/saved-trials）；
  * 4. 兼容保留初始化骨架的旧健康路径（/api/anca-vasculitis-workbench/health）一个发布周期；
  * 5. 卸载时按序关库。
  */
@@ -16,12 +16,15 @@ import Schema from '@deepseek-ai/schemastery'
 import { readFileSync } from 'node:fs'
 import { createStore } from './store.js'
 import { createApiHandler, API_PREFIX } from './routes.js'
+import { servePublic } from './server.js'
+import { bootstrap } from './readmodels.js'
 import { version, build } from '../lib/version.js'
 
 export const name = 'anca-vasculitis-workbench-main'
 export const inject = ['webServer', 'connection']
 
 export { API_PREFIX }
+export const UI_PREFIX = `${API_PREFIX}/ui`
 
 /** Config 必须是 Schemastery schema；root 可选——不给就用内存库（演示，不落盘）。 */
 export const Config = Schema.object({
@@ -50,7 +53,10 @@ export function apply(ctx, config = {}) {
     failure = error.message
   }
 
-  const api = createApiHandler({ source, version, build, failure })
+  const api = createApiHandler({
+    source, version, build, failure,
+    serveUi: (req, res, urlPath) => servePublic(req, res, urlPath),
+  })
 
   const handler = (req, res) => {
     /* 鉴权：宿主不给结论就不放行，不自建登录态。 */

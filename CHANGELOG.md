@@ -2,6 +2,18 @@
 
 只增不删；每条写清"改了什么 + 为什么 + 用户可见结果"。版本号与 VERSION、package.json 三处必须一致。
 
+## 0.2.3 — 2026-10-27
+
+- **M5 开发版七步移植**：
+  - 数据层：`dsh/demo.js`（98 条演示事实播种，幂等）、`dsh/readmodels.js`（bootstrap 形状与原型 DEMO_DATA 逐字段一致）；
+  - 路由与服务：`dsh/routes.js` 接 `/bootstrap`（返回真数据）与 `/ui/` 静态；`dsh/server.js` 静态服务（路径穿越拦截 + SPA 回落）；
+  - 客户端：`lib/layout.js`（customFrame / 0.65 / 会话 25–45%）、`src/client.js → lib/client.js`（构建注入）；
+  - 构建：`scripts/build-public.mjs`（原型 → public，只改数据层与写入适配）、`scripts/build-client.mjs`；
+  - 双通道持久化：原型新增 `persist()` 适配层，开发版注入服务端实现——手工表单与 AI 候选写同一事实层（IP9）；
+  - 开发服务器：`scripts/serve-dev.mjs`（--seed 演示数据，浏览器直接验）；
+- **G4 数据维护更新检查通过**（ACC-32/33/34）：12 类实体 × 手工/AI 双通道逐格实测、拒收零副作用、同源版本链、private 三出口；过程中抓到 `question.updated_at` 漏填并修（schema 已冻结，由 store 统一填审计列）；
+- `npm run audit` **33/33 首次满分**；测试 39 个全绿。
+
 ## 0.2.2 — 2026-10-27
 
 - 疾病概要浮窗排版对齐（36 号 §4.3，用户实指）：正文段 `max-width:68ch` 导致换行点与表格不一致。
