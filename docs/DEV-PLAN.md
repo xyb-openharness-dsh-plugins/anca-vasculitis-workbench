@@ -11,9 +11,9 @@
 | **M0 骨架** | Issue #44 认领 | 私有仓建立；`dsh-wb-cli init`；`cordis.patch.yml` 补 `config.root`；文档 9 件；`npm run check` 通过 | commit `4e45d54`；`npm run check` staticPass=true | ✅ 2026-10-25 |
 | **M1 调研 + SPEC** | M0 通过 | 三路调研有产出：医学约束 10 主题、用户与照护者证据、家族对比实测；DIFF-MATRIX 一级重名率 ≤70%（实测数）；SPEC/SCENARIOS/PATIENT-FLOW/INTERACTION-DESIGN 全量；G1 决策点显式列出 | `research-notes/medical-constraints.md`、`research-notes/family-landscape.md`、`docs/USER-RESEARCH.md`、`docs/DIFF-MATRIX.md`、`docs/SPEC.md`、`docs/SCENARIOS.md`、`docs/PATIENT-FLOW.md`、`docs/INTERACTION-DESIGN.md` | ✅ 2026-10-26（G1 签认） |
 | **M2 原型** | **G1 签认** | demo 构建器 + `prototypes/v0.2/` 四件套；窄宽规则（30 号）从第一版执行；HVT X1–X4 走查；独立评审 P0 修复留痕 | `prototypes/v0.2/`（10 线/32 页/7 路径）+ `scripts/probe-router.py` + `test/path-walk.test.mjs` + `docs/DESIGN-REVIEW.md`（P0=0，P1×12 已修） | 🔧 2026-10-26 原型完成，**待 G2 签认** |
-| **M3 数据模型** | **G2 签认** | `schema/0001_initial.sql` 冻结 + sha256；判读列断言（无 `remission/flare_status/relapse_risk/control_status`）；`freeze-contract.md` | `schema/0001_initial.sql`、`docs/SCHEMA.md` | ⏳ |
+| **M3 数据模型** | **G2 签认**（G3 schema 签认可并行请求） | `schema/0001_initial.sql` 冻结 + sha256；判读列断言 + 写映射逐列一致（check-write-schema W2–W5）；`freeze-contract.md` | `schema/0001_initial.sql`（14 表已建，**G3 冻结候选**）、`dsh/write-schema.js`、`dsh/store.js`（SQLite 主力+文件回退）、`docs/SCHEMA.md` | 🔧 2026-10-26 schema/写入面就绪，**待 G3 签认冻结** |
 | **M4 临床库** | M3 通过 | `research/anca-vasculitis/` 四件套（manifest=jsonl=sqlite）；unified-trial-mcp 在线通道；FAILED 如实记录、不计覆盖 | `research/anca-vasculitis/` | ⏳ |
-| **M5 开发版** | M2/M3/M4 就绪 | 七步移植（数据层/读模型/路由/客户端/MinerU 六部件/测试与红线/宿主接线）；`npm run check` 全绿；`npm run audit` 无 fail；**G4 数据维护更新检查全部通过** | `dsh/`、`lib/`、`public/`、`test/`、ACC-32–34 | ⏳ |
+| **M5 开发版** | M2/M3/M4 就绪 | 七步移植（数据层/读模型/路由/客户端/MinerU 六部件/测试与红线/宿主接线）——**数据层与写端点全族已于 2026-10-26 前置落地**；`npm run check` 全绿；`npm run audit` 无 fail；**G4 数据维护更新检查全部通过** | `dsh/`、`lib/`、`public/`、`test/`、ACC-32–34 | 🔧 数据层前置完成，其余待 M2 签认后推进 |
 | **M6 装机** | V1 + **G4 通过** | 改包必升版 → `npm pack` → tgz 四要素对照 → profile 安装 → 宿主信号 + 真机走查（V3 复跑 G4 两条核心链）；真机截图刷新 README | `docs/ACCEPTANCE.md`、`docs/RELEASE.md` | ⏳ |
 | **M7 发布** | V2/V3 通过 | GitHub tag/Release（附 tgz + sha256）；经验回流 LESSONS；市场投稿不适用（用户 2026-10-25 确认） | `docs/RELEASE.md`、`CHANGELOG.md` | ⏳ |
 | **M8 回填** | M6 三层验收 | 组织 `BACKLOG.md` 只改状态列/招募列；状态列带版本号与日期；🟢 只认 V1+V2+V3 全过 | 组织 `BACKLOG.md` PR | ⏳ |
@@ -41,10 +41,7 @@
 
 ## 四、当前已知缺口（截至 2026-10-26）
 
-1. `npm run audit` 6 项 fail，均为 **M5/发布期**脚手架，不阻塞 M1：
-   - `lib/version.js`、`lib/layout.js`（`customFrame`）未生成；
-   - 检查链缺单测与文案红线两项（M5 接入）；
-   - ~~`docs/DEV-PLAN.md` 缺失~~（本次已补）。
+1. `npm run audit` 余 2 项 fail（`lib/layout.js` 面板单一来源、检查链展示串），均为 **M5 客户端移植**脚手架；`lib/version.js` 已生成（0.2.0）、单测与文案红线检查器已入 check 链。
 2. `prototypes/`、`schema/`、`research/anca-vasculitis/` 仍为空（分别属 M2/M3/M4）。
 3. 医学线仍有 3 项未取得官方原文：NMPA 批准文件、2021 AAGN 指南卷期页码、2018 EGPA 共识页码（详见 `research-notes/medical-constraints.md` §未核实）。
 4. 用户线 0 访谈；滴度焦虑、激素副作用、生育三类**无直接第一人称证据**（如实记录，G1 决策点标注）。
@@ -57,3 +54,4 @@
 | 2026-10-26 | M1 三路调研产出；补本文件；更正指南病种编号 | 待 G1；`#33` → 第 7 病种 / 印刷页 33 |
 | 2026-10-26 | **G1 签认**（DESIGN-01–11）；**新增 G4**：手工 + AI 数据维护更新检查与通过（M5 出口执行，V3 复跑抽查；ACC-32–34） | M2 可开工；M5 出口与 M6 入口增加 G4 判据 |
 | 2026-10-26 | **M2 原型完成**：prototypes/v0.2（10 线/32 页/7 路径、双档案、双通道、34/35 号、30 号窄宽）；独立评审 P0=0、P1×12 已修复；check 全绿 + 探针 + 无头走查 | 待 G2 签认（签认物与 hash 见 docs/PROTOTYPE-REVIEW.md） |
+| 2026-10-26 | **数据层写入面**（用户指令）：schema/0001（14 表，G3 冻结候选）+ dsh/write-schema（12 kind 契约面）+ dsh/store（SQLite 主力+文件回退）+ 写端点全族 + saved-trials + bootstrap capabilities + check-write-schema/check-wording 入链；VERSION 0.2.0 | 待 G3 签认冻结；G4 的 ACC-32–34 有了可实测的写接口 |

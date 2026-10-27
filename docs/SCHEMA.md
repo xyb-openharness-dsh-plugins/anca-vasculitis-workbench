@@ -1,56 +1,52 @@
-# 数据主体—关系—表
+# 数据主体—关系—表 · 小脉宝 VasPal · schema/0001（G3 冻结候选）
 
-| 实体 | 稳定 ID | 主体/外键 | 核心字段/类型 | 约束/索引 | 来源/确认 | 生命周期 |
-| --- | --- | --- | --- | --- | --- | --- |
-| subject | ... | ... | ... | ... | ... | ... |
-| document | ... | subject | relative_path/hash/mime | ... | original | ... |
-| observation | ... | subject/metric_definition | time/value/unit | ... | candidate/confirmed | ... |
-| artifact | ... | task/snapshot | relative_path/hash/format | ... | template version | ... |
+> 权威文件：`schema/0001_initial.sql`（sha256 见 `schema/freeze-contract.md`，**G3 签认前不视为冻结**）。
+> 写入契约：`dsh/write-schema.js`（12 种 kind → 表 → 列，逐列一致）；检查器 `scripts/check-write-schema.mjs`。
 
-实体图：...
-扩展策略：定义目录新增 vs 结构迁移的边界；核心关系不塞入任意 JSON。
-迁移 ledger/旧库 fixture/备份/事务/回滚兼容：...
-数据根选择、相对路径校验、公共数据和私人数据分离：...
-统一读模型与跨页一致性验收：...
+## 表清单（14 表）
 
-## 持久化与记忆选型（互动确认）
-
-等级 A/B/C/D 与理由：...
-预计规模/增长、常用查询、并发写入者、离线要求：...
-SQLite 或 JSON 的实际运行条件与备选方案：...
-
-| 数据类别 | 权威位置/格式 | 读写责任 | 来源/revision | 索引/失效/保留规则 |
+| 表 | 行 | 回答什么 | 关键列 / 约束 | 红线落点 |
 | --- | --- | --- | --- | --- |
-| 已确认业务事实 | ... | ... | ... | ... |
-| 文件与产物 | ... | ... | ... | ... |
-| 偏好/摘要/检索记忆（可选） | ... | ... | ... | ... |
-| 可重建内存缓存/派生索引 | ... | ... | ... | ... |
+| workspace | 档案级 | 库元信息 | schema_version、dataset_state | — |
+| profile | 档案级 | 主体与照护者 | subtype_text/serology_text 只存原文 | T1 |
+| lab_reading | 事实·可写 | 滴度/肾功/尿检/炎症 | marker 枚举 8 值（PR3/MPO 分列）、revision+in_use | T1/T2 |
+| treatment_version | 事实·可写 | 用药版本链 | 起止+原因原文、revision+in_use | T4 |
+| relapse_event | 事实·可写 | 复发事件档案 | organs JSON、confirmation_text 可空 | T1/T3 |
+| side_effect | 事实·可写 | 激素副作用分节 | section 枚举 5 节 | T5 |
+| tolerance_note | 事实·可写 | 用药耐受 | quote_text 必填 | T4/T5 |
+| document | 资料 | 原件清单 | file_path/sha256（真机落盘） | T1 |
+| pathology_note | 资料 | 病理/影像原文+术语 | note_kind、terms JSON、不做分级 | T1 |
+| followup_plan | 事实·可写 | 随访节奏 | source_text 医嘱原文、无推算列 | T7 |
+| visit_summary | 摘要 | 复诊摘要 | items JSON（勾选的事实） | T1 |
+| question | 摘要 | 问题清单 | status open/done、answered_text | — |
+| note | 摘要 | 随手记（可私密） | visibility | T6 |
+| saved_trial | 收藏 | 35 号收藏 | trial_key+saved_at，UNIQUE，无匹配度列 | 35 号 |
 
-同步：提交后更新、幂等键、重试、积压可见性：...
-检索：主体/工作区过滤、来源核对、过期与冲突处理：...
-纠正/删除：缓存与记忆失效、删除传播：...
-外部记忆的实际 API/版本/部署/发送范围；不可用时的本地路径：...
-性能证据：代表数据、查询延迟/启动、内存测量与目标：...
-确认人/日期、未决项及对应验收 ID：...
+## 更正链（版本链）
 
-## 前端与业务流程变化矩阵（建库前必填）
+`lab_reading` / `treatment_version` / `relapse_event` / `side_effect` / `tolerance_note` 带
+`revision` + `in_use`：更正 = 旧行 `in_use=0` + 新行 `revision+1`，不原地 UPDATE——
+任何一次改数都能从库里回放（`POST /records/:kind/:id/correct`）。
 
-领域事实/关系、工作流定义与实例、页面读模型/偏好边界：...
-稳定ID/revision、流程定义版本/已有实例、状态转换与跳过/重开/取消语义：...
+## 写入面（API ↔ schema ↔ AI 同一契约）
 
-| 变化情境 | 不变的事实/关系 | 配置/投影/API变化 | 迁移/旧记录读取与恢复 | 验收证据 |
-| --- | --- | --- | --- | --- |
-| 改导航/布局/同一事实多视图 | ... | ... | ... | ... |
-| 新字段/指标/可选记录类型 | ... | ... | ... | ... |
-| 步骤插入/跳过/重开/并行 | ... | ... | ... | ... |
-| 来源更正/删除/摘要与缓存失效 | ... | ... | ... | ... |
-| 旧数据库/旧API客户端升级 | ... | ... | ... | ... |
+- `POST /api/anca-vasculitis/records/:kind`（12 kind 全族）· 列名超集拒绝（SCHEMA_COLUMN_UNKNOWN）
+- deny 列（判定类）永不接受：`SCHEMA_DENY_COLUMN`（T1 机器化，词表在 `dsh/write-schema.js`）
+- `POST /records/:kind/:id/correct` · `GET /records/:kind?profileId=`
+- `POST|GET|DELETE /api/anca-vasculitis/saved-trials`（35 号：收藏/取消零副作用）
+- `GET /api/anca-vasculitis/bootstrap`：capabilities（存储模式 sqlite/file 回退、schema 版本、kinds+列映射、端点清单）——AI 经同一写接口入库的契约面
+- `GET /health`（`/api/anca-vasculitis-workbench/health` 旧路径兼容保留一个发布周期）
 
-不把UI模拟数据当表，不为每个步骤复制事实；不通过无限JSON、重置库或无理由的全量事件溯源代替设计。详见docs/14-HTML-AND-DATA-CONTRACT.md。
+## 存储策略
 
+**SQLite 主力**（node:sqlite，`<资料目录>/anca-vasculitis.sqlite`，WAL）；
+node:sqlite 不可用或开库失败 → **JSON 文件回退**（`<库>.fallback.json`，同一接口、同一更正链语义）。
+当前模式经 `GET /bootstrap` 的 `storage.mode` 如实上报，不静默降级。
 
-## UI/流程变化的承受能力（必填）
+## 禁止列（deny，T1 红线词表）
 
-领域实体/证据/主体/状态/版本是稳定核心；UI通过命令用例写入和版本化读模型读取。不能按Tab复制事实或把整页state当业务存储。列出：页面拆合/移位、流程先后改变、新增普通指标、来源更正、候选→接受、未知字段/枚举、隐私派生与快照失效时需要改哪层、是否迁移、兼容/恢复方式。
+`remission / flare_status / relapse_risk / control_status / diagnosis / subtype_judgement /
+pathology_grade / risk_level / normal_flag / verdict / severity / match_score / eligible / suitability`
+——schema 全列名 0 命中（check-write-schema W2），写映射 0 出现（W4），路由层 400 拒收。
 
-HTML确认前是候选模型/模拟adapter，确认对应模块后复核并落实生产schema/API；仅布局/字段顺序变化不能迫使用户清库。JSON扩展有类型/schema/version/上限，核心关系保留外键与约束；写入有revision/幂等/事务。记录真实迁移/并发/故障证据，未执行标未验证。
+扩展策略：结构变更只新增 `000N_*.sql`；0001 冻结后不改不删。

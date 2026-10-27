@@ -7,9 +7,9 @@
 
 | # | 交付物 | 落点 | 怎么验 |
 | --- | --- | --- | --- |
-| R1 | 开发版 dsh 七件套 + MinerU 六部件 | `dsh/` | check 全绿（含 34/35 号断言器） |
+| R1 | 开发版 dsh 七件套 + MinerU 六部件 | `dsh/`（store/write-schema/routes 已落地写入面） | check 全绿（含 check-write-schema、check-wording、34/35 号断言器） |
 | R2 | 真客户端链路 | `src/client.js → lib/client.js`（cervical 底本） | 装机副本占位=0 + agent-draft 对穿 ✓ |
-| R3 | schema + 冻结合同 | `schema/0001_initial.sql` | sha256 + 判读列断言 |
+| R3 | schema + 冻结合同 | `schema/0001_initial.sql`（14 表，**G3 冻结候选**，sha256 见 schema/freeze-contract.md） | sha256 + 判读列断言（check-write-schema W2）+ 写映射逐列一致（W3） |
 | R4 | 试验库 | `research/anca-vasculitis/` 四件套 | manifest=jsonl=sqlite；匹配输出走 35 号三态 |
 | R5 | 原型 + 交互路径文档 | `prototypes/v0.2/` + INTERACTION-DESIGN | file:// + IP1–IP10 + HVT X1–X4 |
 | R6 | 文档体系 | docs/ 9 件 | G1/G2/G3 留痕 |
@@ -51,6 +51,7 @@
 
 - M0（2026-10-25）：认领 Issue #44（claimed）+ 建仓 + init 185 文件 + 基线 staticPass ✅。
 - **M1（2026-10-26）**：三路调研产出完成——医学约束 10 主题（指南已取得原文，ANCA 为**第 7 病种 / 印刷页 33**，此前 #33 已更正）、用户与照护者 10 条叙述 + 10 个组织条目（0 访谈如实）、家族对比实测（一级重名率 30% vs 基准 breast，≤70%）；SPEC/SCENARIOS/PATIENT-FLOW/INTERACTION-DESIGN 全量。
+- **G3 请求签认（2026-10-26）**：schema/0001_initial.sql（14 表）冻结候选 + freeze-contract（sha256 `11381c58…`）；写映射（dsh/write-schema.js）与写端点全族已按该 schema 实现并通过 check-write-schema；**冻结在用户签认后生效**。
 - **G1（2026-10-26）**：用户签认 DESIGN-01–11（原话留痕见 DESIGN-SESSION §二）；同时**新增 G4 闸口**：手工 + AI 双通道的数据维护更新检查与通过（9 类实体 × 2 通道、同源断言 IP9、private 三出口；M5 出口首过，V3 复跑抽查；验收行 ACC-32–34）。
 
 ## 八、规范底本核实（M1）
@@ -62,6 +63,12 @@
 | ACR/EULAR 2022 三套分类标准 | ✅ 题录已核实（ARD 2022;81(3) 与 Arthritis Rheumatol 2022;74(3)） |
 | EULAR AAV 管理建议 | ✅ 2022 update，Ann Rheum Dis 2024;83(1):30-47，doi:10.1136/ard-2022-223764 |
 | NMPA 批准文件 / 2021 AAGN 指南卷期 / 2018 EGPA 共识页码 | ⚠️ 未取得原文；界面与 README 不得写"已核实" |
+
+## 十、数据层写入面（2026-10-26 用户指令落地）
+
+- 用户指令：「编辑↔schema↔AI 写入：补 POST /api/xxx/records/:kind 全族（列名与 schema/0001 逐列一致）+ saved-trials + bootstrap capabilities（AI 经同一写接口入库的契约面）+ 新检查器 check-write-schema.mjs；SQLite 主力 + fallback 文件存储」。
+- 落点：schema/0001（14 表）、dsh/write-schema.js、dsh/store.js（SQLite 主力 + 文件回退）、dsh/routes.js + dsh/index.js（写端点全族）、scripts/check-write-schema.mjs + check-wording.mjs（入 check 链）。
+- 测试：test/store.test.mjs + test/write-api.test.mjs（20 用例：更正链、deny 列拒收、文件回退同语义、三态收藏、交界守卫）。
 
 ## 九、发布口径（2026-10-25 用户确认，家族通用）
 

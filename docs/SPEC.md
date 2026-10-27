@@ -85,12 +85,20 @@
 - 时区：本机本地时区；日期只存日期，不存时区偏移。
 - 单位：照抄报告；不做单位换算或参考区间判定。
 
-### API（apiBase 定稿在 M5）
+### API（apiBase 已定稿：`/api/anca-vasculitis`）
 
-- `/api/anca-vasculitis/{profiles,labs,treatments,relapses,side-effects,documents,parse,visit-summary,trials,export,settings}`
-- 4xx JSON 交界守卫；双形态（嵌入式 / 独立打开）回归。
+- 写入面（2026-10-26 随数据层落地）：`POST /records/:kind` 12 kind 全族（列名与 schema/0001 逐列一致，
+  映射唯一来源 `dsh/write-schema.js`）；`POST /records/:kind/:id/correct` 更正链；
+  `POST|GET|DELETE /saved-trials`（35 号收藏/取消零副作用）；
+  `GET /bootstrap` capabilities（=AI 经同一写接口入库的契约面：kinds+列映射+deny 列+端点清单）；
+  `GET /health`（旧路径 `/api/anca-vasculitis-workbench/health` 兼容保留一个发布周期）。
+- 存储：**SQLite 主力**（node:sqlite，`<资料目录>/anca-vasculitis.sqlite`）+ **JSON 文件回退**
+  （node:sqlite 不可用或开库失败时自动切换，同一接口同一更正链；模式经 bootstrap 如实上报）。
+- 交界守卫：校验失败一律 4xx JSON（400/404/405/413），不裸 throw 变 500。
+- 检查器：`scripts/check-write-schema.mjs`（写映射列名必须存在于冻结 schema + deny 列断言），
+  已接入 `npm run check`。
 - 导出：private 默认排除；导出快照带版本号与生成时间。
-- 迁移：`schema/0001_initial.sql` 在 M3 冻结（sha256）；冻结后只增不改。
+- 迁移：`schema/0001_initial.sql` 已建（G3 冻结候选，sha256 记于 freeze-contract.md）；冻结后只增不改。
 
 ## 六、设置与配置
 
