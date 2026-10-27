@@ -12,12 +12,23 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
+/* 装机包里没有 prototypes/（那只是原型期的源码），所以演示数据要在构建时落成 JSON 随包发出。
+   顺序：包内 demo/demo-data.json（装机态） → 仓库内 prototypes/v0.2/demo-data.js（开发态）。 */
+const DEMO_JSON = join(ROOT, 'demo/demo-data.json')
 const DEMO_JS = join(ROOT, 'prototypes/v0.2/demo-data.js')
 
 /** 在 Node 里求值 demo-data.js（它是 window 全局脚本，不是 ESM） */
-export function loadDemoData(file = DEMO_JS) {
-  if (!existsSync(file)) return null
-  const src = readFileSync(file, 'utf8')
+export function loadDemoData(file = null) {
+  /* 装机态：直接读构建产物 JSON */
+  if (!file && existsSync(DEMO_JSON)) {
+    try {
+      const data = JSON.parse(readFileSync(DEMO_JSON, 'utf8'))
+      if (data && Array.isArray(data.profiles)) return data
+    } catch { /* 落到开发态 */ }
+  }
+  const target = file || DEMO_JS
+  if (!existsSync(target)) return null
+  const src = readFileSync(target, 'utf8')
   const sandbox = { window: {} }
   /* demo-data.js 用 `const DEMO_DATA = (() => {...})()` 定义（不是 window 全局），
      所以把求值结果显式 return 出来；文件本身无副作用、不访问网络与文件系统。 */

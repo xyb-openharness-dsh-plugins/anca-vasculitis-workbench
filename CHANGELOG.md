@@ -2,6 +2,15 @@
 
 只增不删；每条写清"改了什么 + 为什么 + 用户可见结果"。版本号与 VERSION、package.json 三处必须一致。
 
+## 0.2.5 — 2026-10-27
+
+- **V2 装机实测修缺陷**：`dsh/demo.js` 原先只读 `prototypes/v0.2/demo-data.js`，而 `prototypes/`
+  不在发布包内 —— 装机后播种必然失败（"找不到演示数据"）。
+  修法：构建时把演示数据落成 `demo/demo-data.json` 随包发出（`files` 增 `demo`），
+  `demo.js` 优先读包内 JSON、开发态回落到原型源码。
+- 打包与装机：`release/xyb-community-anca-vasculitis-workbench-0.2.5.tgz`，
+  已装进 Desktop 活动 profile（`web`）并登记 `dsh.profile.bundles`。
+
 ## 0.2.4 — 2026-10-27
 
 - **MinerU 六部件（18 号 v2）**：

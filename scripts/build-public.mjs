@@ -126,6 +126,26 @@ function patchApp(js) {
   return js.replace(DATA_FROM, DATA_TO).replace(BOOT_FROM, PERSIST_TO + '\n' + UPLOAD_TO + '\n' + BOOT_TO)
 }
 
+/* ---------------- demo/demo-data.json（装机态演示数据） ----------------
+   装机包里没有 prototypes/，所以演示数据要在构建时落成 JSON 随包发出；
+   否则 --seed / 首次播种在真机上必然找不到文件（V2 装机实测踩到）。 */
+function buildDemoJson() {
+  const src = read('demo-data.js')
+  const fn = new Function('window', `${src}\nreturn (typeof DEMO_DATA !== 'undefined') ? DEMO_DATA : window.DEMO_DATA;`)
+  const data = fn({})
+  if (!data || !Array.isArray(data.profiles)) fail('prototypes/v0.2/demo-data.js 求值后拿不到 DEMO_DATA')
+  const outDir = join(root, 'demo')
+  if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true })
+  const target = join(outDir, 'demo-data.json')
+  const body = JSON.stringify(data, null, 2) + '\n'
+  if (checkOnly) {
+    if (!existsSync(target) || readFileSync(target, 'utf8') !== body) fail('demo/demo-data.json 与原型不同步')
+    return
+  }
+  writeFileSync(target, body)
+  console.log('  · demo/demo-data.json（装机态演示数据）')
+}
+
 /* ---------------- 产出 ---------------- */
 
 const version = readFileSync(join(root, 'VERSION'), 'utf8').trim()
@@ -139,6 +159,8 @@ const outputs = {
   'primer-data.js': read('primer-data.js'),
   'primer.js': read('primer.js'),
 }
+
+buildDemoJson()
 
 if (checkOnly) {
   const problems = []
