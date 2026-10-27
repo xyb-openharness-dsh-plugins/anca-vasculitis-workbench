@@ -19,7 +19,7 @@
    全站无裸删除文案（IP8）：更正 = 新增版本，旧版本永远可查（IP9）。 */
 
 const APP_INFO = {
-  version: '0.2.7', build: '2026-10-27',
+  version: '0.2.9', build: '2026-10-27',
   channelLabel: '交互原型 · 未接入 DSH / AI',
   brand: '小脉宝 VasPal', en: 'anca-vasculitis', proto: 'anca'
 };
@@ -783,7 +783,7 @@ function pageRecordsProfile() {
   const p = profile();
   const isNew = DATA.profiles.length === 0;
   const menu = section('更多', '', moreMenu([[isNew ? '建立档案（手工）' : '修改档案（手工）', 'form-profile', '']]));
-  if (isNew) return `<div class="card empty-onboarding"><h2>建立病情档案</h2><p>称呼为必填；年龄、确诊日期、亚型、血清型与照护者称呼均可先留空。</p><div class="card-actions">${btn('建立档案', 'form-profile', 'primary')}</div><p class="small-note">只保存到当前本机资料目录，不会自动创建或上传患者数据。</p></div>` + menu;
+  if (isNew) return `<div class="card empty-onboarding"><h2>建立病情档案</h2><p>称呼为必填；年龄、确诊日期、亚型、血清型和照护者称呼均可留空。</p><div class="card-actions">${btn('建立档案', 'form-profile', 'primary')}</div><p class="small-note">只保存在当前本机资料目录，不会自动上传或创建示例患者。</p></div>` + menu;
   return `<div class="grid cols-2"><div class="card"><h3>${esc(p.name)} ${pill((p.sex || '') + (p.age ? ' · ' + p.age + ' 岁' : ''), 'mist')}</h3>
       <p class="hint">${esc(p.meta || '本机档案')}</p><hr class="sep">
       <div class="cfg-row"><span class="k">亚型（原文）</span><span class="v">${esc(p.subtypeText || '未填写')}</span></div>
@@ -1284,16 +1284,22 @@ async function saveProfile() {
   const age = Number($('#kv-age')?.dataset.value || p.age || 0) || null;
   const birthDate = age ? `${new Date().getFullYear() - age}-01-01` : null;
   const dxDate = $('#f-dx')?.value || p.dxDate || null;
-  const payload = { id: p.id, name, birth_date: birthDate, gender: p.sex || null, subtype_text: $('#f-sub').value.trim() || null, serology_text: $('#f-sero').value.trim() || null, dx_date: dxDate, caregiver_label: $('#f-cg').value.trim() || null };
+  const payload = { id: p.id, name, birth_date: birthDate, gender: p.sex || null,
+    subtype_text: $('#f-sub').value.trim() || null, serology_text: $('#f-sero').value.trim() || null,
+    dx_date: dxDate, caregiver_label: $('#f-cg').value.trim() || null };
   if (!(await persist('profile', payload))) return;
-  Object.assign(p, { name, age: age || '', birth_date: birthDate, dxDate, subtypeText: payload.subtype_text || '', serologyText: payload.serology_text || '', caregiverLabel: payload.caregiver_label || '', caregiver: payload.caregiver_label || '', meta: '本机档案' });
+  Object.assign(p, { name, age: age || '', birth_date: birthDate, dxDate,
+    subtypeText: payload.subtype_text || '', serologyText: payload.serology_text || '',
+    caregiverLabel: payload.caregiver_label || '', caregiver: payload.caregiver_label || '', meta: '本机档案' });
   for (const k of ['labs','treatmentVersions','relapseEvents','pathology','imaging','followups','upcoming','documents','notes','savedTrials']) if (!p[k]) p[k] = [];
   if (!p.sideEffects) p.sideEffects = {};
   if (!p.visit) p.visit = { nextDate: null, nextDept: '', questions: [], summaries: [] };
   if (isNew) DATA.profiles.push(p);
   state.profileIdx = Math.max(0, DATA.profiles.findIndex((x) => x.id === p.id));
   state.chartSel = null;
-  renderProfileChip(); closeModal(); toast(isNew ? '档案已在本机建立' : '档案已保存到本机', { cta: { text: '回到看板', action: 'go', page: 'dashboard' } }); navigate('dashboard', '');
+  renderProfileChip(); closeModal();
+  toast(isNew ? '档案已在本机建立' : '档案已保存到本机', { cta: { text: '回到看板', action: 'go', page: 'dashboard' } });
+  navigate('dashboard', '');
 }
 const SAVES = { 'save-paste': savePaste, 'save-lab': saveLab, 'save-event': saveEvent, 'save-treat': saveTreat, 'save-side': saveSide, 'save-tolerance': saveTolerance, 'save-doc': saveDoc, 'save-question': saveQuestion, 'save-follow': saveFollow, 'save-profile': saveProfile };
 document.addEventListener('click', (e) => {

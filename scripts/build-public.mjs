@@ -119,11 +119,16 @@ const BOOT_TO = `(async function bootDev() {
   init();
 })();`
 
-function patchApp(js) {
+function patchApp(js, version) {
   for (const needle of [DATA_FROM, BOOT_FROM]) {
     if (!js.includes(needle)) fail(`prototypes/v0.2/app.js 结构变了，找不到锚点：${needle.slice(0, 60)}…`)
   }
-  return js.replace(DATA_FROM, DATA_TO).replace(BOOT_FROM, PERSIST_TO + '\n' + UPLOAD_TO + '\n' + BOOT_TO)
+  let out = js.replace(DATA_FROM, DATA_TO).replace(BOOT_FROM, PERSIST_TO + '\n' + UPLOAD_TO + '\n' + BOOT_TO)
+  /* APP_INFO.version 必须与 VERSION 同源；否则 public 页脚/关于/包版本会漂移。 */
+  const appInfoRe = /(const APP_INFO = \{[\s\S]*?version: ')[^']+(')/
+  if (!appInfoRe.test(out)) fail('public/app.js 构建补丁：找不到 APP_INFO.version')
+  out = out.replace(appInfoRe, `$1${version}$2`)
+  return out
 }
 
 /* ---------------- demo/demo-data.json（装机态演示数据） ----------------
@@ -153,7 +158,7 @@ const outputs = {
   'style.css': read('style.css'),
   'demo-data.js': read('demo-data.js'),
   'index.html': patchIndex(read('index.html'), version),
-  'app.js': patchApp(read('app.js')),
+  'app.js': patchApp(read('app.js'), version),
   /* 36 号疾病概要：index.html 以相对路径引用这三个文件，缺一个顶栏「?」就打不开浮窗 */
   'primer.css': read('primer.css'),
   'primer-data.js': read('primer-data.js'),
