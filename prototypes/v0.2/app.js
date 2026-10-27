@@ -1,5 +1,5 @@
 'use strict';
-/* 小脉宝 VasPal v0.2.0 — ANCA 相关血管炎（AAV）患者工作台交互原型。
+/* 小脉宝 VasPal v0.2.1 — ANCA 相关血管炎（AAV）患者工作台交互原型。
    数据唯一来源 demo-data.js（合成演示）；不读写真实文件、不调用模型或宿主 API。
    一级导航 10 线 key 与 docs/INTERACTION-DESIGN.md §五逐字一致（IP3）：
    dashboard / titer / treatment / relapse / sideeffect / pathology / calendar / visit / records / oneshow。
@@ -405,6 +405,51 @@ function metricFlipCard(markerKey, extra) {
     </div></div></div>${extra || ''}`;
   return front;
 }
+/* ---------------- 看板状态卡（36 号 §2.6：四件结构，天数由锚点日派生） ---------------- */
+function phaseInfo() {
+  const p = profile();
+  /* 锚点日：确诊日（Day 0）——与 T1 一致：只取档案原文记录的日期，不推断分期 */
+  const anchor = p.dxDate && /\d{4}-\d{2}/.test(p.dxDate) ? `${p.dxDate.length === 7 ? p.dxDate + '-01' : p.dxDate}` : null;
+  const days = anchor ? Math.max(0, Math.round((Date.parse(TODAY) - Date.parse(anchor)) / DAY)) : null;
+  const nextUp = (p.upcoming || [])[0] || null;
+  const toNext = nextUp ? Math.round((Date.parse(nextUp.d) - Date.parse(TODAY)) / DAY) : null;
+  const cur = currentTreatments();
+  /* 阶段名取"当前方案"的医嘱原因原文（诱导/维持），无则显示待补 */
+  const phaseRaw = cur.map((t) => t.reason || '').find((r) => r.includes('维持') || r.includes('诱导')) || '';
+  const phase = phaseRaw.includes('维持') ? '维持期' : (phaseRaw.includes('诱导') ? '诱导期' : '');
+  return { anchor, days, nextUp, toNext, phase, phaseRaw };
+}
+function statusCard() {
+  const { anchor, days, nextUp, toNext, phase } = phaseInfo();
+  if (!anchor || days === null) {
+    return `<div class="card status-card" id="status-card">
+      <div class="sc-head"><span class="eyebrow">状态卡 · 待初始化</span></div>
+      <p class="sc-empty">还没有可用于计算天数的锚点日（确诊日）。</p>
+      <p class="hint">在「病情整理 → 病情档案」里补确診日期与当前方案原文，本卡自动按天派生。</p>
+      <div class="card-actions">${btn('去补档案', 'go', 'primary', 'data-page="records" data-sub="profile"')}${btn('疾病概要：ANCA 相关血管炎是什么？', 'primer-open', '')}</div>
+    </div>`;
+  }
+  const headTxt = toNext !== null && toNext >= 0
+    ? `D+${days} 状态卡 · 距下次复查 ${toNext} 天`
+    : `D+${days} 状态卡 · 下次复查日期待登记`;
+  const statusLine = phase
+    ? `当前阶段：<b>${esc(phase)}</b>（取自医嘱原文）`
+    : `当前阶段：<b>待补</b>（治疗方案里还没有阶段原文）`;
+  const nextLine = nextUp
+    ? `下次：<b class="num">${fmtDate(nextUp.d)}</b>（${esc(nextUp.dept)} · ${esc(nextUp.items)}）`
+    : `下次：<b>待登记</b>（随访日历）`;
+  const mainBtn = phase === '维持期'
+    ? go('看当前方案 →', 'treatment', 'current', 'primary')
+    : go('看诱导与维持 →', 'treatment', 'phases', 'primary');
+  return `<div class="card status-card" id="status-card">
+    <div class="sc-head"><span class="eyebrow">${esc(headTxt)}</span></div>
+    <div class="sc-days"><b class="num">第 ${days} 天</b><span>自确诊日 ${esc(fmtDate(anchor))} 起</span></div>
+    <p class="sc-line">${statusLine}</p>
+    <p class="sc-line">${nextLine}</p>
+    <div class="card-actions">${mainBtn}${btn('疾病概要：ANCA 相关血管炎是什么？', 'primer-open', '')}</div>
+  </div>`;
+}
+
 function pageDashboard() {
   const p = profile();
   const nextUp = (p.upcoming || [])[0];
@@ -412,8 +457,8 @@ function pageDashboard() {
   const actionCard = (cardName, sceneId, desc, extraBtn) => `
     <div class="card"><h3>${cardName} ${recorderTag(state.actor)}</h3><p class="hint">${esc(desc)}</p>
       <div class="card-actions">${btn(sceneLabel(sceneId), 'scene', 'primary', `data-scene="${sceneId}"`)}${aiLink(sceneId, 'AI 协助')}${extraBtn || ''}</div></div>`;
-  const cards = `
-    <div class="grid cols-3">
+  const cards = statusCard() + `
+    <div class="grid cols-3" style="margin-top:14px">
       ${p.serologyText.includes('PR3') ? metricFlipCard('PR3_ANCA') : metricFlipCard('MPO_ANCA')}
       ${metricFlipCard('CREATININE')}
       <div class="card"><h3>下次复诊</h3>
@@ -851,6 +896,11 @@ document.addEventListener('click', (e) => {
     'more-close': () => {},
     'chart-sel': () => { /* change 事件处理 */ },
     'chart-range': () => { state.chartRange = t.dataset.range; render(); },
+    'primer-open': (ev) => {
+      /* starter primer.js 监听 [data-primer-open]；若尚未挂载（脚本未加载），提示而不是静默 */
+      const native = document.querySelector('[data-primer-open]');
+      if (!native) { ev.preventDefault(); toast('疾病概要模块未加载（primer.js）'); }
+    },
     'cand-accept': () => { const row = t.closest('.cand'); row.classList.add('accepted'); row.classList.remove('rejected'); },
     'cand-reject': () => { const row = t.closest('.cand'); row.classList.add('rejected'); row.classList.remove('accepted'); toast('已拒收：未写入任何数据（零副作用）'); },
     'cand-all-reject': () => { closeModal(); toast('已全部拒收：未写入任何数据（零副作用）'); },

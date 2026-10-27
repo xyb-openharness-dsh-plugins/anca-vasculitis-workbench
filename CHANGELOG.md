@@ -2,6 +2,15 @@
 
 只增不删；每条写清"改了什么 + 为什么 + 用户可见结果"。版本号与 VERSION、package.json 三处必须一致。
 
+## 0.2.1 — 2026-10-27
+
+- **36 号 v2 补齐（HTML demo 阶段）**：
+  - primer 两件覆盖为 starter 最新版（支持指南可点链接 + `.dp-miss` 缺链断言）；
+  - `primer-data.js` evidence 表逐行补 url/secondaryUrl，全部 curl 验证可达（gov.cn PDF、两条 DOI、两条 medsci 题录）；无编织 URL，未取得原件如实标二次来源；
+  - 看板新增 §2.6 状态卡（四件结构，天数由确诊日派生，无锚点显示待初始化）；
+  - 新增 `scripts/probe-disease-primer.mjs`（starter 探针纳入本仓）→ 本仓页面 9/9 通过。
+- 修复：复诊摘要勾选行被全局 `input{width:100%}` 撑爆、主体切换 chip 换行。
+
 ## 0.2.0 — 2026-10-26
 
 - 数据层写入面（用户指令「编辑↔schema↔AI 写入」）：
