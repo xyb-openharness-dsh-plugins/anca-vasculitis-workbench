@@ -37,22 +37,12 @@
           <button class="status" id="ready-store" data-action="settings" aria-label="资料目录：已就绪"><i></i><span>资料目录</span><b>已就绪</b></button>
           <button data-action="settings" aria-label="打开设置：本机数据目录、记录主体、私密分级">设置</button>
           <button id="font-toggle" aria-pressed="false" title="切换大字">大字 Aa</button>
-          <button id="agent-toggle" data-action="agent-toggle" aria-expanded="false" aria-controls="agent-pane">AI 协助</button>
           <button class="ver-chip" id="ver-chip" data-action="about" aria-label="关于小脉宝：版本与构建信息">v0.2.6</button>
         </div>
       </header>
       <main id="main" tabindex="-1"></main>
       <footer class="footer">小脉宝 VasPal · 与 ANCA 相关血管炎患者和照护者一起整理、记录、准备沟通 · 只整理不判定，判读归主诊团队 <span class="ver-line"><b id="app-version">v0.2.6</b><em>2026-10-26</em></span></footer>
     </div>
-    <div id="agent-splitter" role="separator" aria-orientation="vertical" aria-label="调整 AI 协助面板宽度（左右方向键步进）" aria-valuemin="25" aria-valuemax="45" aria-valuenow="35" tabindex="0" hidden></div>
-    <aside id="agent-pane" aria-label="AI 协助面板" hidden>
-      <div class="agent-head">
-        <span id="agent-label" class="agent-label">AI 协助 · 演示</span>
-        <button id="agent-hide" class="icon-button" data-action="agent-hide" aria-label="收起 AI 协助">×</button>
-      </div>
-      <div class="agent-body" id="agent-body"></div>
-      <div class="agent-foot"><input placeholder="演示：未接入，输入不可用" disabled aria-label="演示输入框，未接入"></div>
-    </aside>
   </div>
 </div>
 <dialog id="dialog" aria-labelledby="dialog-title">

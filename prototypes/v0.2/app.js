@@ -14,12 +14,12 @@
    T6 双主体 recorder（本人/家属代记），visibility=private 三出口（看板/一图秀/导出与 AI 上下文）统一过滤；
    T7 随访节奏只记医嘱原文，不推算"该查了"；急症提示固定通用、不判分诊。
    AI 协助入口为 anca:agent-draft 协议链接（34 号：嵌入式形态携带预写提示词+已核对上下文直接发送；
-   独立打开时填入本地演示面板并说明未接通）。候选逐项核对才入事实层；拒收零副作用（IP5）。
+   独立打开时复制提示词并说明没有会话面板，页面不自建聊天窗/输入框/发送键）。候选逐项核对才入事实层；拒收零副作用（IP5）。
    手工通道「⋯ 更多」收敛：每页显式编辑 ≤1、表单 ≤6 字段、数字用键盘组件（IP6/IP7）。
    全站无裸删除文案（IP8）：更正 = 新增版本，旧版本永远可查（IP9）。 */
 
 const APP_INFO = {
-  version: '0.2.6', build: '2026-10-27',
+  version: '0.2.7', build: '2026-10-27',
   channelLabel: '交互原型 · 未接入 DSH / AI',
   brand: '小脉宝 VasPal', en: 'anca-vasculitis', proto: 'anca'
 };
@@ -167,7 +167,6 @@ const state = {
   profileIdx: 0,
   chartSel: null,
   chartRange: 'all',
-  agent: { open: false, w: 35, prompt: null },
   actor: 'PATIENT',
   cfg: { root: '/Users/demo/Documents/VasPal（演示）', storeState: '就绪', defaultVisibility: 'normal' },
   mem: { labs: [], events: [], treatments: [], sideEffects: [], docs: [], questions: null, candidates: [], summaries: [], followups: [], tolerance: [], profiles: {} }
@@ -190,7 +189,7 @@ async function persist(kind, payload) {
 }
 
 const mem = () => state.mem;
-const profile = () => DATA.profiles[state.profileIdx] || { name: '演示', labs: {}, notes: [], documents: [] };
+const profile = () => DATA.profiles[state.profileIdx] || (state.emptyProfile ||= { id: `profile_${uid('new')}`, name: '', age: '', sex: '', subtypeText: '', serologyText: '', dxDate: null, meta: '尚未建档', caregiverLabel: '', caregiver: '', labQuoteNote: '', labs: {}, treatmentVersions: [], relapseEvents: [], sideEffects: {}, pathology: [], imaging: [], followups: [], upcoming: [], documents: [], notes: [], visit: { nextDate: null, nextDept: '', questions: [], summaries: [] }, savedTrials: [] });
 const added = (k) => { if (!mem()[k]) mem()[k] = []; return mem()[k]; };
 const questions = () => { if (!mem().questions) mem().questions = (profile().visit.questions || []).map((q) => ({ ...q })); return mem().questions; };
 const privateNotes = () => (profile().notes || []).filter((n) => n.visibility === 'private');
@@ -255,17 +254,30 @@ function aiPromptFor(sceneId) {
 const aiLink = (sceneId = 'S01', label = 'AI 协助') =>
   `<a class="ai-link" href="${APP_INFO.proto}:agent-draft?prompt=${encodeURIComponent(aiPromptFor(sceneId))}" data-action="agent-draft" data-scene="${sceneId}">✦ ${esc(label)}<small>（候选→核对→入库）</small></a>`;
 
+/* 页内只把提示词交给宿主原生会话：嵌入式 postMessage anca:agent-draft；
+   独立打开复制到剪贴板并明说没有会话面板。页面里不渲染聊天窗/输入框/发送键。 */
+function copyPromptText(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(() => true, () => false);
+    }
+  } catch { /* 剪贴板不可用：由调用方如实提示手动复制 */ }
+  return Promise.resolve(false);
+}
+
 function handleAgentDraft(sceneId) {
   const prompt = aiPromptFor(sceneId);
   if (EMBEDDED) {
     let sent = true;
     try { window.parent.postMessage({ type: `${APP_INFO.proto}:agent-draft`, prompt, send: true }, location.origin); } catch { sent = false; }
-    toast(sent ? '已把预写提示词发送到 AI 会话（候选需逐项核对后才入库）' : '未送达原生会话：提示词已保留在演示面板');
+    if (!sent) {
+      void copyPromptText(prompt).then((ok) => toast(ok ? '未送达原生会话：已复制提示词，请手动粘贴' : '未送达原生会话：请手动复制提示词后粘贴'));
+    } else toast('已把预写提示词发送到 AI 会话（候选需逐项核对后才入库）');
     openCandidateDemo(sceneId);
   } else {
-    state.agent.open = true;
-    state.agent.prompt = prompt;
-    renderAgent();
+    void copyPromptText(prompt).then((ok) => toast(ok
+      ? '已复制预写提示词；独立打开没有 AI 会话面板，请粘贴到宿主会话'
+      : '独立打开没有 AI 会话面板；请手动复制提示词后粘贴到宿主会话'));
     openCandidateDemo(sceneId);
   }
 }
@@ -468,6 +480,8 @@ function statusCard() {
 }
 
 function pageDashboard() {
+  if (!DATA.profiles.length) return head('开始使用小脉宝', '本机资料目录已连接，但还没有档案。可建立档案或导入自己的资料；不会自动显示示例患者。')
+    + `<div class="card empty-onboarding"><span class="eyebrow">本机资料目录 · 已连接</span><h2>先建立一个病情档案</h2><p>称呼为必填；确诊日期、亚型和血清型可先留空，之后可从已核对的报告补充。</p><div class="card-actions">${go('建立档案', 'records', 'profile', 'primary')}${go('导入文件或粘贴文本', 'records', 'drafts', '')}</div><p class="small-note">资料库当前为空，不会自动填入演示患者数据。</p></div>`;
   const p = profile();
   const nextUp = (p.upcoming || [])[0];
   const recentEvent = allEvents()[allEvents().length - 1];
@@ -476,7 +490,7 @@ function pageDashboard() {
       <div class="card-actions">${btn(sceneLabel(sceneId), 'scene', 'primary', `data-scene="${sceneId}"`)}${aiLink(sceneId, 'AI 协助')}${extraBtn || ''}</div></div>`;
   const cards = statusCard() + `
     <div class="grid cols-3" style="margin-top:14px">
-      ${p.serologyText.includes('PR3') ? metricFlipCard('PR3_ANCA') : metricFlipCard('MPO_ANCA')}
+      ${String(p.serologyText || '').includes('PR3') ? metricFlipCard('PR3_ANCA') : metricFlipCard('MPO_ANCA')}
       ${metricFlipCard('CREATININE')}
       <div class="card"><h3>下次复诊</h3>
         ${nextUp ? `<div class="kpi"><b class="num">${fmtDate(nextUp.d)}</b><span class="unit">${esc(nextUp.dept)}</span></div><p class="hint">要查：${esc(nextUp.items)}；带：${esc(nextUp.bring)}</p>` : `<div class="empty">还没有登记下次复诊</div>`}
@@ -767,14 +781,16 @@ function pageRecordsDrafts() {
 }
 function pageRecordsProfile() {
   const p = profile();
-  const menu = section('更多', '', moreMenu([['修改档案（手工）', 'form-profile', '']]));
-  return `<div class="grid cols-2"><div class="card"><h3>${esc(p.name)} ${pill(p.sex + ' · ' + p.age + ' 岁', 'mist')}</h3>
-      <p class="hint">${esc(p.meta)}</p><hr class="sep">
-      <div class="cfg-row"><span class="k">亚型（原文）</span><span class="v">${esc(p.subtypeText)}</span></div>
-      <div class="cfg-row"><span class="k">血清型（原文）</span><span class="v">${esc(p.serologyText)}</span></div>
-      <div class="cfg-row"><span class="k">确诊时间</span><span class="v num">${esc(p.dxDate)}</span></div>
-      <div class="cfg-row"><span class="k">照护者</span><span class="v">${esc(p.caregiverLabel)}</span></div></div>
-      <div class="card"><h3>记录主体</h3><p class="hint">当前以「${state.actor === 'FAMILY' ? '家属代记（' + esc(p.caregiverLabel) + '）' : '本人自记'}」身份记录；代记条目保留记录人标识。</p>
+  const isNew = DATA.profiles.length === 0;
+  const menu = section('更多', '', moreMenu([[isNew ? '建立档案（手工）' : '修改档案（手工）', 'form-profile', '']]));
+  if (isNew) return `<div class="card empty-onboarding"><h2>建立病情档案</h2><p>称呼为必填；年龄、确诊日期、亚型、血清型与照护者称呼均可先留空。</p><div class="card-actions">${btn('建立档案', 'form-profile', 'primary')}</div><p class="small-note">只保存到当前本机资料目录，不会自动创建或上传患者数据。</p></div>` + menu;
+  return `<div class="grid cols-2"><div class="card"><h3>${esc(p.name)} ${pill((p.sex || '') + (p.age ? ' · ' + p.age + ' 岁' : ''), 'mist')}</h3>
+      <p class="hint">${esc(p.meta || '本机档案')}</p><hr class="sep">
+      <div class="cfg-row"><span class="k">亚型（原文）</span><span class="v">${esc(p.subtypeText || '未填写')}</span></div>
+      <div class="cfg-row"><span class="k">血清型（原文）</span><span class="v">${esc(p.serologyText || '未填写')}</span></div>
+      <div class="cfg-row"><span class="k">确诊时间</span><span class="v num">${esc(p.dxDate || '未填写')}</span></div>
+      <div class="cfg-row"><span class="k">照护者</span><span class="v">${esc(p.caregiverLabel || '未填写')}</span></div></div>
+      <div class="card"><h3>记录主体</h3><p class="hint">当前以「${state.actor === 'FAMILY' ? '家属代记（' + esc(p.caregiverLabel || '') + '）' : '本人自记'}」身份记录；代记条目保留记录人标识。</p>
       <div class="card-actions">${btn('切换为' + (state.actor === 'FAMILY' ? '本人' : '替家人记'), 'actor-toggle', '', '')}</div>
       <hr class="sep"><h3>私密分级</h3><p class="hint">默认可见性：${state.cfg.defaultVisibility === 'private' ? '私密' : '常规'}；private 三出口过滤（看板/一图秀/导出与 AI 上下文）。</p></div></div>` + menu;
 }
@@ -848,27 +864,16 @@ function render() {
     const desc = SUBDESC[`${page}/${state.sub[page]}`] || SUBTITLES[page] || '';
     html = backRow() + pageHeadFor(desc) + (fn ? fn() : `<div class="empty">本页签尚未实现</div>`);
   }
+  const activeProfile = DATA.profiles[state.profileIdx];
+  if (activeProfile?.isSyntheticExample || String(activeProfile?.name || '').includes('合成示例')) {
+    html = `<div class="notice warn synthetic-banner" role="note"><b>合成示例资料</b>：当前虚拟档案及化验、用药、事件均为编写示例，不对应真实患者，不可作为诊疗依据。</div>` + html;
+  }
   $('#main').innerHTML = html;
   if (state.page === 'records' && state.sub.records === 'drafts') setTimeout(refreshMineruState, 0);
   $('#breadcrumb').textContent = subLabel(page);
   $$('#nav .nav-button').forEach((b) => b.setAttribute('aria-current', b.dataset.page === page ? 'page' : 'false'));
   document.title = `${subLabel(page)} · ${APP_INFO.brand} · ANCA 工作台原型 ${APP_INFO.version}`;
 }
-
-/* ---------------- AI 面板（30 号：25–45% 可拖拽可收起） ---------------- */
-const clampAgentW = (w) => Math.min(45, Math.max(25, w));
-function renderAgent() {
-  const pane = $('#agent-pane'), splitter = $('#agent-splitter');
-  pane.hidden = !state.agent.open;
-  splitter.hidden = !state.agent.open;
-  $('#agent-toggle').setAttribute('aria-expanded', String(state.agent.open));
-  document.documentElement.style.setProperty('--agent-w', state.agent.w + '%');
-  $('#agent-body').innerHTML = `
-    <div class="notice plain">这是<b>演示面板</b>：${EMBEDDED ? '嵌入式形态会把预写提示词直接发送到原生会话（34 号）。' : '独立打开（file://）不假装发送；真机中通过 anca:agent-draft 接通原生会话。'}</div>
-    ${state.agent.prompt ? `<div class="prompt-text">${esc(state.agent.prompt)}</div>` : ''}
-    <p class="small-note">提示词只携带本机已核对摘要（private 过滤）；候选逐项核对才入事实层；AI 不代替你发言、不生成任何判读。</p>`;
-}
-function setAgent(open) { state.agent.open = open; renderAgent(); }
 
 /* ---------------- 设置（目录 / 主体 / 私密分级） ---------------- */
 function openSettings(tab) {
@@ -974,8 +979,6 @@ document.addEventListener('click', (e) => {
     'go': () => navigate(t.dataset.page, t.dataset.sub),
     'close': () => closeModal(),
     'flip': () => { const el = document.getElementById(t.dataset.target); if (el) el.classList.toggle('flipped'); },
-    'agent-toggle': () => setAgent(!state.agent.open),
-    'agent-hide': () => setAgent(false),
     'agent-draft': (ev) => { ev.preventDefault(); handleAgentDraft(t.dataset.scene || 'S01'); },
     'scene': () => runScene(t.dataset.scene),
     'settings': () => openSettings(0),
@@ -1069,9 +1072,9 @@ function runScene(id) {
 }
 function renderProfileChip() {
   const p = profile();
-  $('#profile-name').textContent = `${p.name}的资料`;
-  $('#profile-meta').textContent = `${p.age} 岁 · ${p.meta}`;
-  $('#profile-avatar').textContent = p.name[0];
+  $('#profile-name').textContent = p.name ? `${p.name}的资料` : '尚未建立档案';
+  $('#profile-meta').textContent = p.name ? `${p.age ? p.age + ' 岁 · ' : ''}${p.meta || '本机档案'}` : '先建立档案或导入资料';
+  $('#profile-avatar').textContent = p.name ? p.name[0] : '＋';
   const chip = $('#actor-chip');
   if (chip) {
     chip.setAttribute('aria-pressed', String(state.actor === 'FAMILY'));
@@ -1263,24 +1266,34 @@ async function saveFollow() {
 }
 function formProfile() {
   const p = profile();
-  formDialog('修改病情档案', [
-    field('称呼', `<input id="f-name" value="${esc(p.name)}">`, true),
-    field('年龄', keypad('age', String(p.age)), true),
-    field('亚型（只存原文）', `<input id="f-sub" value="${esc(p.subtypeText)}">`, false, '不判定，只照抄报告/出院记录原文'),
-    field('血清型（只存原文）', `<input id="f-sero" value="${esc(p.serologyText)}">`, false),
-    field('照护者', `<input id="f-cg" value="${esc(p.caregiverLabel)}">`, false)
+  const isNew = DATA.profiles.length === 0;
+  formDialog(isNew ? '建立病情档案' : '修改病情档案', [
+    field('称呼（例如昵称）', `<input id="f-name" value="${esc(p.name || '')}" placeholder="本人称呼或昵称">`, true),
+    field('年龄（可留空）', keypad('age', p.age ? String(p.age) : ''), false),
+    field('确诊日期（可留空）', `<input id="f-dx" type="date" value="${esc(p.dxDate || '')}">`, false),
+    field('亚型（按报告原文，可留空）', `<input id="f-sub" value="${esc(p.subtypeText || '')}" placeholder="照抄报告/出院记录原文">`, false),
+    field('血清型（按报告原文，可留空）', `<input id="f-sero" value="${esc(p.serologyText || '')}" placeholder="PR3-ANCA / MPO-ANCA（以原文为准）">`, false),
+    field('照护者称呼（可留空）', `<input id="f-cg" value="${esc(p.caregiverLabel || '')}">`, false)
   ], 'save-profile');
 }
 async function saveProfile() {
+  const isNew = DATA.profiles.length === 0;
   const p = profile();
-  if (!(await persist('profile', { id: p.id, name: $('#f-name').value.trim() || p.name, subtype_text: $('#f-sub').value.trim() || null, serology_text: $('#f-sero').value.trim() || null, caregiver_label: $('#f-cg').value.trim() || null }))) return;
-  p.name = $('#f-name').value.trim() || p.name;
-  p.age = Number($('#kv-age')?.dataset.value || p.age);
-  p.subtypeText = $('#f-sub').value.trim();
-  p.serologyText = $('#f-sero').value.trim();
-  p.caregiverLabel = $('#f-cg').value.trim();
+  const name = $('#f-name').value.trim();
+  if (!name) { toast('称呼必填；未保存'); return; }
+  const age = Number($('#kv-age')?.dataset.value || p.age || 0) || null;
+  const birthDate = age ? `${new Date().getFullYear() - age}-01-01` : null;
+  const dxDate = $('#f-dx')?.value || p.dxDate || null;
+  const payload = { id: p.id, name, birth_date: birthDate, gender: p.sex || null, subtype_text: $('#f-sub').value.trim() || null, serology_text: $('#f-sero').value.trim() || null, dx_date: dxDate, caregiver_label: $('#f-cg').value.trim() || null };
+  if (!(await persist('profile', payload))) return;
+  Object.assign(p, { name, age: age || '', birth_date: birthDate, dxDate, subtypeText: payload.subtype_text || '', serologyText: payload.serology_text || '', caregiverLabel: payload.caregiver_label || '', caregiver: payload.caregiver_label || '', meta: '本机档案' });
+  for (const k of ['labs','treatmentVersions','relapseEvents','pathology','imaging','followups','upcoming','documents','notes','savedTrials']) if (!p[k]) p[k] = [];
+  if (!p.sideEffects) p.sideEffects = {};
+  if (!p.visit) p.visit = { nextDate: null, nextDept: '', questions: [], summaries: [] };
+  if (isNew) DATA.profiles.push(p);
+  state.profileIdx = Math.max(0, DATA.profiles.findIndex((x) => x.id === p.id));
   state.chartSel = null;
-  renderProfileChip(); closeModal(); toast('档案已更新（原文口径）', { cta: { text: '回到看板', action: 'go', page: 'dashboard' } }); navigate('records', 'profile');
+  renderProfileChip(); closeModal(); toast(isNew ? '档案已在本机建立' : '档案已保存到本机', { cta: { text: '回到看板', action: 'go', page: 'dashboard' } }); navigate('dashboard', '');
 }
 const SAVES = { 'save-paste': savePaste, 'save-lab': saveLab, 'save-event': saveEvent, 'save-treat': saveTreat, 'save-side': saveSide, 'save-tolerance': saveTolerance, 'save-doc': saveDoc, 'save-question': saveQuestion, 'save-follow': saveFollow, 'save-profile': saveProfile };
 document.addEventListener('click', (e) => {
@@ -1296,29 +1309,12 @@ function buildNav() {
 function init() {
   buildNav();
   renderProfileChip();
-  renderAgent();
   render();
-  if (!EMBEDDED) setAgent(false);
   $('#font-toggle')?.addEventListener('click', () => {
     const b = $('#font-toggle');
     const on = b.getAttribute('aria-pressed') !== 'true';
     b.setAttribute('aria-pressed', String(on));
     document.body.classList.toggle('large', on);
-  });
-  const splitter = $('#agent-splitter');
-  splitter?.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft') { state.agent.w = clampAgentW(state.agent.w + 2); renderAgent(); }
-    if (e.key === 'ArrowRight') { state.agent.w = clampAgentW(state.agent.w - 2); renderAgent(); }
-  });
-  splitter?.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    const move = (ev) => {
-      const total = $('.stage').getBoundingClientRect().width;
-      state.agent.w = clampAgentW(Math.round((total - (ev.clientX - $('.stage').getBoundingClientRect().left)) / total * 100));
-      renderAgent();
-    };
-    const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); };
-    addEventListener('pointermove', move); addEventListener('pointerup', up);
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && e.target?.classList?.contains('flip')) e.target.click();
