@@ -109,10 +109,11 @@
         position: 'absolute', top: 0, right: 0, bottom: 0, zIndex: 3,
         boxShadow: '-8px 0 24px rgba(92, 75, 122, 0.16)',
       }
+      /* 分隔线：1px 常规线条，绝对定位在业务区/会话边界上，不占布局宽度。
+         指针热区由子元素向外扩到 11px，线条本身不因为“好拖”而变粗。 */
       const splitterStyle = {
-        flex: '0 0 auto', width: 10, cursor: 'col-resize', background: '#E9E3F0',
-        borderLeft: '1px solid #E4DFEA', borderRight: '1px solid #E4DFEA', touchAction: 'none',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+        position: 'absolute', top: 0, bottom: 0, width: 1, marginRight: -0.5,
+        zIndex: 2, background: '#E4DFEA', cursor: 'col-resize', touchAction: 'none',
         transition: 'background .15s ease, box-shadow .15s ease',
       }
 
@@ -124,23 +125,34 @@
         const mix = (c) => Math.round(c + (255 - c) * ratio)
         return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`
       }
+      const splitterRgba = (hex, alpha) => {
+        const n = parseInt(String(hex).replace('#', ''), 16)
+        return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`
+      }
       const splitterHoverStyle = {
         ...splitterStyle,
-        background: splitterMix(SPLITTER_BRAND, 0.55),
-        borderLeft: `1px solid ${splitterMix(SPLITTER_BRAND, 0.25)}`,
-        borderRight: `1px solid ${splitterMix(SPLITTER_BRAND, 0.25)}`,
-        boxShadow: `0 0 0 1px ${splitterMix(SPLITTER_BRAND, 0.6)}`,
+        background: SPLITTER_BRAND,
+        boxShadow: `0 0 6px ${splitterRgba(SPLITTER_BRAND, 0.55)}`,
       }
       const splitterDragStyle = {
         ...splitterHoverStyle,
-        background: splitterMix(SPLITTER_BRAND, 0.42),
-        boxShadow: `0 0 0 2px ${splitterMix(SPLITTER_BRAND, 0.7)}`,
+        boxShadow: `0 0 10px ${splitterRgba(SPLITTER_BRAND, 0.8)}`,
+      }
+      const splitterHitStyle = {
+        position: 'absolute', top: 0, bottom: 0, left: -5, width: 11,
+        background: 'transparent', cursor: 'col-resize',
       }
       const splitterGripStyle = {
-        fontSize: 11, lineHeight: 1, letterSpacing: '-1px', color: '#fff',
+        position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+        width: 14, height: 22, borderRadius: 4, background: SPLITTER_BRAND,
+        color: '#fff', fontSize: 11, lineHeight: '22px', letterSpacing: '-1px', textAlign: 'center',
         opacity: 0.95, pointerEvents: 'none', userSelect: 'none',
+        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.18)',
       }
-      const splitterFocusStyle = { ...splitterStyle, background: '#CFC4DE' }
+      const splitterFocusStyle = {
+        ...splitterStyle, background: SPLITTER_BRAND,
+        boxShadow: `0 0 0 1px ${splitterRgba(SPLITTER_BRAND, 0.5)}`,
+      }
       const dragShieldStyle = {
         position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 4,
         cursor: 'col-resize', background: 'transparent', touchAction: 'none',
@@ -464,12 +476,18 @@
               'aria-valuemax': Math.round(AGENT_MAX * 100),
               'aria-valuenow': percent,
               tabIndex: 0,
-              style: dragging ? splitterDragStyle : hovering ? splitterHoverStyle : splitterStyle,
+              style: {
+                ...(dragging ? splitterDragStyle : hovering ? splitterHoverStyle : splitterStyle),
+                right: `${percent}%`,
+              },
               onPointerDown: onSplitterPointerDown,
               onPointerEnter: () => setHovering(true),
               onPointerLeave: () => setHovering(false),
               onKeyDown: onSplitterKeyDown,
-            }, (hovering || dragging) ? h('span', { style: splitterGripStyle, 'aria-hidden': 'true' }, '⠿') : null),
+            },
+              // 1px 线条 + 11px 透明热区：看起来是常规分界线，拖起来仍有足够命中面积
+              h('span', { style: splitterHitStyle, 'aria-hidden': 'true' }),
+              (hovering || dragging) ? h('span', { style: splitterGripStyle, 'aria-hidden': 'true' }, '⠿') : null),
             // 原生会话**始终挂载**：卸载会丢掉输入框与草稿状态（宿主明确要求不重挂输入树），
             // 所以隐藏走 display，不卸载组件。
             h('aside', {

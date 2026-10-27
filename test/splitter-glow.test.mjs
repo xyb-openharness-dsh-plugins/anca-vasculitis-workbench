@@ -3,20 +3,30 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
 /* 全家族统一行为：AI 面板分隔线可左右拖动；悬停显示本工作台同色系增亮色 + 拖动把手。
+   线条本身是 1px 常规分界线（不占布局宽度），命中面积由 11px 透明热区提供。
    对已构建的 lib/client.js 做静态断言，防止构建或回退把行为丢掉。 */
 const built = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
 
-test('分隔线有加宽的抓取区与 col-resize 光标', () => {
-  assert.match(built, /const splitterStyle = \{[\s\S]*?width: 10,/m)
+test('分隔线是 1px 常规线条，绝对定位不占布局宽度', () => {
+  assert.match(built, /const splitterStyle = \{[\s\S]*?position: 'absolute'/)
+  assert.match(built, /width: 1, marginRight: -0\.5/)
   assert.match(built, /cursor: 'col-resize'/)
+  assert.doesNotMatch(built, /width: 10, cursor: 'col-resize'/)
+})
+
+test('拖动命中面积由 11px 透明热区提供（线条不因好拖而变粗）', () => {
+  assert.match(built, /const splitterHitStyle = \{[\s\S]*?width: 11/)
+  assert.match(built, /h\('span', \{ style: splitterHitStyle/)
 })
 
 test('悬停与拖动使用同色系增亮样式（非固定蓝色）', () => {
   assert.match(built, /SPLITTER_BRAND/)
   assert.match(built, /splitterMix/)
+  assert.match(built, /splitterRgba/)
   assert.match(built, /const splitterHoverStyle = \{/)
   assert.match(built, /const splitterDragStyle = \{/)
-  assert.match(built, /style: dragging \? splitterDragStyle : hovering \? splitterHoverStyle : splitterStyle/)
+  assert.match(built, /boxShadow: `0 0 6px/)
+  assert.match(built, /\.\.\.\(dragging \? splitterDragStyle : hovering \? splitterHoverStyle : splitterStyle\)/)
 })
 
 test('悬停时出现拖动把手 icon', () => {
