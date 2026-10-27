@@ -19,7 +19,7 @@
    全站无裸删除文案（IP8）：更正 = 新增版本，旧版本永远可查（IP9）。 */
 
 const APP_INFO = {
-  version: '0.2.3', build: '2026-10-27',
+  version: '0.2.4', build: '2026-10-27',
   channelLabel: '交互原型 · 未接入 DSH / AI',
   brand: '小脉宝 VasPal', en: 'anca-vasculitis', proto: 'anca'
 };
@@ -737,10 +737,33 @@ function pageRecordsLibrary() {
       : `<div class="card" style="margin-bottom:10px"><h3><span class="num">${fmtDate(n.d)}</span> ${recorderTag(n.recorder)}</h3><p>${esc(n.text)}</p></div>`).join('')
     + menu;
 }
+/* 解析任务三态（18 号）：解析中 / 失败(如实错误码) / 成功(产出候选) */
+function parseJobsBlock() {
+  const jobs = (state.mem.parseJobs || []);
+  if (!jobs.length) return '';
+  return section('解析记录', '每次导入一行；失败如实记录，原件保留可重试')
+    + `<div class="table-wrap"><table><thead><tr><th>文件</th><th>状态</th><th>错误码 / 说明</th><th>时间</th></tr></thead><tbody>
+    ${jobs.slice().reverse().map((j) => `<tr>
+      <td>${esc(j.filename || '—')}</td>
+      <td>${j.status === 'parsed' ? pill('已解析', 'blue') : j.status === 'failed' ? pill('失败', 'warn') : j.status === 'unsupported' ? pill('不支持', 'mist') : pill('解析中', 'orange')}</td>
+      <td>${esc(j.error_code || j.note || '—')}</td>
+      <td class="num">${esc((j.at || '').slice(11, 19) || '—')}</td></tr>`).join('')}
+    </tbody></table></div>`;
+}
 function pageRecordsDrafts() {
   const cands = added('candidates');
-  return (cands.length ? cands.map((c) => `<div class="cand ${c.rejected ? 'rejected' : ''}" style="margin-bottom:10px"><div class="cand-head"><b>${esc(c.title)}</b>${c.rejected ? pill('已拒收', 'warn') : pill('待核对', 'orange')}</div><div class="kv">${c.rows.map((r) => `<span><b>${esc(r.f)}：</b>${esc(r.v)}</span>`).join('')}</div>
-      ${c.rejected ? '' : `<div class="cand-actions">${btn('确认入库', 'draft-accept', 'primary', `data-cid="${c.id}"`)}${btn('拒收', 'draft-reject', '', `data-cid="${c.id}"`)}</div>`}</div>`).join('') : `<div class="empty">暂无待核对候选</div>`);
+  const list = cands.length
+    ? cands.map((c) => `<div class="cand ${c.rejected ? 'rejected' : ''}" style="margin-bottom:10px"><div class="cand-head"><b>${esc(c.title)}</b>${c.rejected ? pill('已拒收', 'warn') : pill('待核对', 'orange')}</div><div class="kv">${c.rows.map((r) => `<span><b>${esc(r.f)}：</b>${esc(r.v)}</span>`).join('')}</div>
+      ${c.rejected ? '' : `<div class="cand-actions">${btn('确认入库', 'draft-accept', 'primary', `data-cid="${c.id}"`)}${btn('拒收', 'draft-reject', '', `data-cid="${c.id}"`)}</div>`}</div>`).join('')
+    : `<div class="empty">暂无待核对候选</div>`;
+  return `<div class="card" style="margin-bottom:12px"><h3>导入一份报告</h3>
+    <p class="hint">PDF / 图片走 MinerU 云端解析；CSV / TXT / MD 本地解析（不花额度）。原件永远保留，候选逐项核对后才入库。</p>
+    <div class="card-actions">
+      <label class="btn-like">${btn('选择文件导入', 'doc-upload', 'primary')}</label>
+      ${btn('粘贴文本解析', 'form-paste', '')}
+    </div>
+    <p class="small-note">解析器状态：<span id="mineru-state">检查中…</span></p></div>`
+    + list + parseJobsBlock();
 }
 function pageRecordsProfile() {
   const p = profile();
@@ -826,6 +849,7 @@ function render() {
     html = backRow() + pageHeadFor(desc) + (fn ? fn() : `<div class="empty">本页签尚未实现</div>`);
   }
   $('#main').innerHTML = html;
+  if (state.page === 'records' && state.sub.records === 'drafts') setTimeout(refreshMineruState, 0);
   $('#breadcrumb').textContent = subLabel(page);
   $$('#nav .nav-button').forEach((b) => b.setAttribute('aria-current', b.dataset.page === page ? 'page' : 'false'));
   document.title = `${subLabel(page)} · ${APP_INFO.brand} · ANCA 工作台原型 ${APP_INFO.version}`;
@@ -892,6 +916,54 @@ function formDialog(title, body, commitAction) {
     btn('取消', 'close', '') + btn('保存', commitAction, 'primary'));
 }
 
+/* 上传/解析（18 号六部件之六：前端三态）。原型内只做演示；开发版注入真实上传。 */
+let UPLOAD_DOC = null;   // 开发版注入：async (file, meta) => { status, job, candidates, skipped }
+async function uploadDocument(file) {
+  const p = profile();
+  if (!state.mem.parseJobs) state.mem.parseJobs = [];
+  const at = new Date().toISOString();
+  if (typeof UPLOAD_DOC === 'function') {
+    state.mem.parseJobs.push({ filename: file.name, status: 'parsing', at });
+    render();
+    try {
+      const r = await UPLOAD_DOC(file, { profileId: p.id, recorder: state.actor });
+      const last = state.mem.parseJobs[state.mem.parseJobs.length - 1];
+      last.status = r?.job?.status || (r?.ok ? 'parsed' : 'failed');
+      last.error_code = r?.job?.error_code || '';
+      last.note = r?.note || '';
+      for (const c of (r?.candidates || [])) added('candidates').push({ id: uid('cd'), key: c.kind, title: `解析候选 · ${file.name}`, rows: Object.entries(JSON.parse(c.payload)).filter(([k]) => !['profile_id','recorder','visibility','source_kind','source_doc_id'].includes(k)).map(([k,v]) => ({ f: k, v: String(v) })), remoteId: c.id, rejected: false });
+      render();
+      toast(last.status === 'parsed' ? `解析完成：${(r?.candidates || []).length} 条候选待核对` : `解析${last.status === 'failed' ? '失败' : '未完成'}：${last.error_code || '见解析记录'}`);
+    } catch (e) {
+      const last = state.mem.parseJobs[state.mem.parseJobs.length - 1];
+      last.status = 'failed'; last.error_code = 'UPLOAD_FAILED'; last.note = String(e.message || e).slice(0, 80);
+      render(); toast('上传失败：' + String(e.message || e).slice(0, 40));
+    }
+    return;
+  }
+  /* 原型演示态 */
+  state.mem.parseJobs.push({ filename: file.name, status: 'failed', error_code: 'DEMO_ONLY', note: '原型不发起真实解析（开发版走 /parse/document）', at });
+  render();
+  toast('原型演示：不发起真实解析（开发版可用）');
+}
+async function refreshMineruState() {
+  const el = document.getElementById('mineru-state');
+  if (!el) return;
+  if (typeof PERSIST !== 'function') { el.textContent = '原型演示（未接通解析服务）'; return; }
+  try {
+    const r = await fetch(apiBasePersist() + '/settings/mineru', { credentials: 'same-origin' });
+    const d = await r.json();
+    el.textContent = d.configured ? `已配置（${d.masked || ''}）· ${d.source}` : '未配置 Token：PDF/图片解析将如实失败，CSV/TXT 可本地解析';
+  } catch { el.textContent = '解析服务不可达'; }
+}
+let PERSIST_BASE = null;
+function apiBasePersist() {
+  if (PERSIST_BASE !== null) return PERSIST_BASE;
+  const m = location.pathname.match(/^(.*)\/ui(?:\/|$)/);
+  PERSIST_BASE = m ? m[1] : '';
+  return PERSIST_BASE;
+}
+
 /* ---------------- 事件处理 ---------------- */
 document.addEventListener('click', (e) => {
   const t = e.target.closest('[data-action]');
@@ -924,6 +996,14 @@ document.addEventListener('click', (e) => {
     'cand-commit': () => commitCandidates(),
     'draft-accept': () => { const c = added('candidates').find((x) => x.id === t.dataset.cid); if (c) { writeCandidate(c); toast('候选已核对入库（写入事实层）'); render(); } },
     'draft-reject': () => { const c = added('candidates').find((x) => x.id === t.dataset.cid); if (c) { c.rejected = true; render(); toast('已拒收：未写入任何数据'); } },
+    'doc-upload': () => {
+      const inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = '.pdf,.png,.jpg,.jpeg,.docx,.xlsx,.csv,.txt,.md';
+      inp.onchange = () => { const f = inp.files?.[0]; if (f) uploadDocument(f); };
+      inp.click();
+    },
+    'form-paste': () => formPaste(),
     'form-lab': () => formLab(),
     'form-event': () => formEvent(),
     'form-treat': () => formTreat(),
@@ -1037,6 +1117,20 @@ function openSummaryCommit() {
 
 /* ---------------- 表单（≤6 字段；数字用键盘组件） ---------------- */
 const MARKER_OPTS = Object.entries(MARKERS).map(([k, m]) => [k, m.name]);
+function formPaste() {
+  formDialog('粘贴文本解析', [
+    field('文件类型', `<select id="f-fname"><option value="粘贴.txt">纯文本 .txt</option><option value="粘贴.md">Markdown .md</option><option value="粘贴.csv">CSV .csv</option></select>`, true, '文本类在本地解析，不花云端额度'),
+    field('内容', `<textarea id="f-text" rows="8" placeholder="把化验单/报告里的表格或正文粘进来"></textarea>`, true),
+  ], 'save-paste');
+}
+function savePaste() {
+  const text = $('#f-text').value;
+  if (!text.trim()) { toast('内容为空；未解析'); return; }
+  const fname = $('#f-fname').value;
+  closeModal();
+  const file = new File([text], fname, { type: 'text/plain' });
+  uploadDocument(file);
+}
 function formLab() {
   formDialog('手工补一条化验', [
     field('指标', `<select id="f-marker">${MARKER_OPTS.map(([k, n]) => `<option value="${k}">${n}</option>`).join('')}</select>`, true),
@@ -1188,7 +1282,7 @@ async function saveProfile() {
   state.chartSel = null;
   renderProfileChip(); closeModal(); toast('档案已更新（原文口径）', { cta: { text: '回到看板', action: 'go', page: 'dashboard' } }); navigate('records', 'profile');
 }
-const SAVES = { 'save-lab': saveLab, 'save-event': saveEvent, 'save-treat': saveTreat, 'save-side': saveSide, 'save-tolerance': saveTolerance, 'save-doc': saveDoc, 'save-question': saveQuestion, 'save-follow': saveFollow, 'save-profile': saveProfile };
+const SAVES = { 'save-paste': savePaste, 'save-lab': saveLab, 'save-event': saveEvent, 'save-treat': saveTreat, 'save-side': saveSide, 'save-tolerance': saveTolerance, 'save-doc': saveDoc, 'save-question': saveQuestion, 'save-follow': saveFollow, 'save-profile': saveProfile };
 document.addEventListener('click', (e) => {
   const t = e.target.closest('[data-action]');
   if (t && SAVES[t.dataset.action]) SAVES[t.dataset.action]();

@@ -89,6 +89,24 @@ const PERSIST_TO = `PERSIST = async (kind, payload) => {
   return { ok: true, row: data.row || null };
 };`
 
+/* 上传适配层：把 uploadDocument() 接到 /parse/document（File → base64 → POST） */
+const UPLOAD_TO = `UPLOAD_DOC = async (file, meta) => {
+  const buf = await file.arrayBuffer();
+  let bin = '';
+  const bytes = new Uint8Array(buf);
+  const CH = 0x8000;
+  for (let i = 0; i < bytes.length; i += CH) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+  const b64 = btoa(bin);
+  const res = await fetch(apiBase() + '/parse/document', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, credentials: 'same-origin',
+    body: JSON.stringify({ profileId: meta.profileId, filename: file.name, mime: file.type || '',
+      contentBase64: b64, recorder: meta.recorder || 'PATIENT' }),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, job: data.job || null, document: data.document || null,
+    candidates: data.candidates || [], skipped: data.skipped || [], note: data.note || (data.error ? data.error + ': ' + (data.message||'') : '') };
+};`
+
 const BOOT_FROM = `init();`
 const BOOT_TO = `(async function bootDev() {
   DATA_SOURCE = await loadBootstrap();
@@ -105,7 +123,7 @@ function patchApp(js) {
   for (const needle of [DATA_FROM, BOOT_FROM]) {
     if (!js.includes(needle)) fail(`prototypes/v0.2/app.js 结构变了，找不到锚点：${needle.slice(0, 60)}…`)
   }
-  return js.replace(DATA_FROM, DATA_TO).replace(BOOT_FROM, PERSIST_TO + '\n' + BOOT_TO)
+  return js.replace(DATA_FROM, DATA_TO).replace(BOOT_FROM, PERSIST_TO + '\n' + UPLOAD_TO + '\n' + BOOT_TO)
 }
 
 /* ---------------- 产出 ---------------- */

@@ -23,6 +23,9 @@ import { createHash } from 'node:crypto'
 import { WRITE_KINDS, WRITE_KIND_KEYS, DENY_COLUMNS, SCHEMA_VERSION, MARKER_NAMES } from './write-schema.js'
 import { snapshotMeta, trialMatches } from './trials.js'
 import { bootstrap } from './readmodels.js'
+import { mineruSettingsStatus, saveMineruToken, clearMineruToken } from './settings.js'
+import { createMineruClient, maskToken } from './mineru.js'
+import { parseAndRecord } from './parse.js'
 
 export const API_PREFIX = '/api/anca-vasculitis'
 
@@ -203,6 +206,8 @@ export function createApiHandler({ source, version, build, failure, serveUi }) {
         endpoints: [
           'GET  /health', 'GET  /bootstrap', 'POST /parse（文件/拍照/文本 → 候选；PDF/图片 M5 接 MinerU）',
           'GET  /candidates', 'POST /candidates/:id/accept', 'POST /candidates/:id/reject',
+          'GET/POST /settings/mineru（Token 状态/保存/清除）',
+          'POST /parse/document（PDF/图片 → MinerU → 候选；文本类本地抽）',
           ...WRITE_KIND_KEYS.map((k) => `POST /records/${k}`),
           ...WRITE_KIND_KEYS.map((k) => `GET  /records/${k}`),
           'GET  /trials（35 号三态：命中/无法自动匹配；不产出"不适用"）',
@@ -238,6 +243,70 @@ export function createApiHandler({ source, version, build, failure, serveUi }) {
         const status = statusForError(error)
         if (status === 500) throw error
         return sendJson(res, status, { error: error.code || 'CANDIDATE_FAILED', message: error.message })
+      }
+    }
+
+    /* ---- MinerU 设置（18 号 §5：GET 给状态、POST 存/清；响应体永不回显 token） ---- */
+    if (path === `${API_PREFIX}/settings/mineru`) {
+      if (method === 'GET') {
+        const st = mineruSettingsStatus()
+        return sendJson(res, 200, {
+          configured: st.configured, source: st.source, masked: st.masked ?? null,
+          path: st.path ?? null, tokenUrl: 'https://mineru.net/apiManage/token',
+          note: st.configured ? '已配置：解析走 MinerU 云端' : '未配置：PDF/图片导入会如实 FAILED(NO_TOKEN)，原件仍会入库',
+        })
+      }
+      if (method === 'POST') {
+        const body = await safeBody(req, res); if (body === null) return
+        try {
+          if (body.clear === true) {
+            clearMineruToken(body)
+            return sendJson(res, 200, { ok: true, cleared: true, configured: false })
+          }
+          if (typeof body.token !== 'string' || !body.token.trim()) {
+            return sendJson(res, 400, { error: 'VALIDATION_FAILED', message: 'token 必填（或传 clear:true 清除）' })
+          }
+          saveMineruToken(body.token.trim(), body)
+          const st = mineruSettingsStatus()
+          return sendJson(res, 200, { ok: true, configured: st.configured, masked: st.masked ?? null })
+        } catch (error) {
+          const status = /TOKEN_INVALID|TOKEN_FORMAT/.test(String(error?.code)) ? 400 : 500
+          return sendJson(res, status, { error: error?.code || 'SETTINGS_FAILED', message: String(error?.message || error).slice(0, 200) })
+        }
+      }
+      return sendJson(res, 405, { error: 'Method not allowed' })
+    }
+
+    /* ---- 解析任务（18 号六部件之四）：文件/拍照 → parse_job → candidate ---- */
+    if (path === `${API_PREFIX}/parse/document`) {
+      if (method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' })
+      const body = await safeBody(req, res); if (body === null) return
+      const profileId = body.profileId
+      if (!profileId) return sendJson(res, 400, { error: 'VALIDATION_FAILED', message: 'profileId 必填' })
+      let bytes = null
+      if (typeof body.contentBase64 === 'string') bytes = Buffer.from(body.contentBase64, 'base64')
+      else if (typeof body.text === 'string') bytes = Buffer.from(body.text, 'utf8')
+      if (!bytes || !bytes.length) return sendJson(res, 400, { error: 'VALIDATION_FAILED', message: '提供 contentBase64 或 text' })
+      if (bytes.length > 30 * 1024 * 1024) return sendJson(res, 413, { error: 'BODY_TOO_LARGE', message: '单文件上限 30MB' })
+
+      const st = mineruSettingsStatus()
+      const client = st.configured ? createMineruClient() : null
+      try {
+        const result = await parseAndRecord(source, {
+          bytes,
+          filename: String(body.filename || 'document.pdf'),
+          mime: String(body.mime || ''),
+          profileId,
+          recorder: ['PATIENT', 'FAMILY'].includes(body.recorder) ? body.recorder : 'PATIENT',
+          docType: ['检查报告', '病理报告', '影像报告', '门诊记录', '出院记录', '住院记录', '处方', '个人材料', '其他'].includes(body.docType) ? body.docType : '其他',
+          client,
+        })
+        const failed = ['failed', 'unsupported'].includes(result.job.status)
+        return sendJson(res, failed ? 202 : 201, result)
+      } catch (error) {
+        const status = statusForError(error)
+        if (status === 500) return sendJson(res, 400, { error: error.code || 'PARSE_FAILED', message: String(error.message || error).slice(0, 200) })
+        return sendJson(res, status, { error: error.code || 'PARSE_FAILED', message: error.message })
       }
     }
 

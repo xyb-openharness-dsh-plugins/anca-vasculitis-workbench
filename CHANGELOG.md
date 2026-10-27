@@ -2,6 +2,18 @@
 
 只增不删；每条写清"改了什么 + 为什么 + 用户可见结果"。版本号与 VERSION、package.json 三处必须一致。
 
+## 0.2.4 — 2026-10-27
+
+- **MinerU 六部件（18 号 v2）**：
+  - `dsh/mineru.js`：API v4 四步协议 + 错误分类 + 模型回退判定（401 不换模型，只有"模型不支持"才回退）；
+  - `dsh/settings.js`：Token 三态（env/文件/未配置）、掩码不泄露原文、原子写 600、清除只删 token 键；密钥落 `~/.vaspal/secrets/mineru.json`；
+  - `dsh/ancaparse.js`：ANCA 专用抽取（8 个 marker，与 schema enum 一致）+ HTML/CSV 表格 → 管道 + 单位剥 LaTeX + 不等式留原文 + 参考区间放弃 + **短缩写词边界**（PROMO/CPR3 不误命中）；
+  - `dsh/parse.js`：`parse_job` 三态（parsed/failed/unsupported）+ 候选落 `candidate` 表；原件永久保留可重试；失败不产候选；
+  - 接口：`GET/POST /settings/mineru`（响应体永不回显 token）、`POST /parse/document`；
+  - 界面：资料库「导入一份报告」（选文件 / 粘贴文本）+ 解析记录三态表 + 解析器状态行；
+- 测试 **18 项**（抽取器 8 / 编排 5 / 设置 2 / 扩展名与字典一致性 3），全绿；
+- 实测闭环：粘贴 CSV → 解析 2 条候选（CRP 参考区间自动跳过）→ 确认 1 条 → 化验 31→32 条，值正确；PDF 无 token 如实 FAILED(NO_TOKEN) 且原件入库。
+
 ## 0.2.3 — 2026-10-27
 
 - **M5 开发版七步移植**：

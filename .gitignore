@@ -11,3 +11,7 @@ output/
 *.sqlite-wal
 *.sqlite-shm
 *.db
+
+# MinerU / 任何密钥文件（假 Token 也不能进仓库）
+.secrets/
+*.local.json
