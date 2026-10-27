@@ -38,7 +38,16 @@ function patchIndex(html, version) {
   const barTo = `<div class="prototype-bar"><span><b>开发版 v${version}</b> · 演示资料直到连接本机资料目录</span><span>本机数据 · 只整理不判定 · 判读归风湿免疫及专科医生</span></div>`
   if (!titleRe.test(html)) fail('prototypes/v0.2/index.html 标题结构与预期不符（找不到 <title>…原型 vX.Y.Z</title>）')
   if (!barRe.test(html)) fail('prototypes/v0.2/index.html 顶部条结构与预期不符')
-  return html.replace(titleRe, titleTo).replace(barRe, barTo)
+  /* 页头版本按钮与页脚版本行同样是字面量，一起随 VERSION 注入，避免升版后 public 与包版本漂移 */
+  const chipRe = /(<button class="ver-chip"[^>]*>)v[\d.]+(<\/button>)/
+  const footRe = /(<b id="app-version">)v[\d.]+(<\/b>)/
+  if (!chipRe.test(html)) fail('prototypes/v0.2/index.html 缺少版本按钮（.ver-chip）')
+  if (!footRe.test(html)) fail('prototypes/v0.2/index.html 缺少页脚版本行（#app-version）')
+  return html
+    .replace(titleRe, titleTo)
+    .replace(barRe, barTo)
+    .replace(chipRe, `$1v${version}$2`)
+    .replace(footRe, `$1v${version}$2`)
 }
 
 /* ---------------- app.js：只改数据层 ---------------- */

@@ -32,6 +32,19 @@ test('悬停状态与指针捕获已接通（拖过业务 iframe 不丢事件）
   assert.match(built, /setPointerCapture\(event\.pointerId\)/)
 })
 
+test('分隔线夹在业务区与会话之间（不在面板最右缘）', () => {
+  const splitter = built.indexOf("'aria-label': '调整 AI 对话面板宽度'")
+  const aside = built.indexOf("h('aside', {")
+  assert.ok(splitter > -1, '找不到分隔线')
+  assert.ok(aside > -1, '找不到会话面板')
+  assert.ok(splitter < aside, '分隔线必须渲染在 aside 之前，否则贴在最右缘、分界线上拖不动')
+})
+
+test('拖动时铺透明遮罩，指针掠过业务 iframe 也不丢事件', () => {
+  assert.match(built, /const dragShieldStyle = \{[\s\S]*?position: 'absolute'/)
+  assert.match(built, /dragging && !narrow && h\('div', \{ 'aria-hidden': 'true', style: dragShieldStyle \}\)/)
+})
+
 test('拖动仍限制在宿主允许的 25%–45%', () => {
   assert.match(built, /AGENT_MIN/)
   assert.match(built, /AGENT_MAX/)

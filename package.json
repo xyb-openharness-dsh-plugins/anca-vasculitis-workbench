@@ -1,6 +1,6 @@
 {
   "name": "@xyb-community/anca-vasculitis-workbench",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "description": "面向 ANCA 相关血管炎患者与照护者的本机病程资料工作台：ANCA 滴度（PR3/MPO）时间线、复发事件档案、免疫抑制用药版本链、激素副作用分节轨道",
   "private": true,
   "type": "module",

@@ -141,6 +141,10 @@
         opacity: 0.95, pointerEvents: 'none', userSelect: 'none',
       }
       const splitterFocusStyle = { ...splitterStyle, background: '#CFC4DE' }
+      const dragShieldStyle = {
+        position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 4,
+        cursor: 'col-resize', background: 'transparent', touchAction: 'none',
+      }
       const fallbackStyle = { padding: 24, color: '#3E7C8F', fontSize: 14, lineHeight: 1.7 }
       const buttonStyle = {
         border: 0, borderRadius: 999, padding: '5px 14px', whiteSpace: 'nowrap',
@@ -449,6 +453,23 @@
                 onLoad: () => { setBroken(false); clearTimeout(brokenTimer.current) },
               }),
             ),
+            // 分隔线必须夹在业务区与会话之间：放到 aside 之后会贴到面板最右缘，
+            // 真正的分界线上就既没有悬停高亮也拖不动。
+            // splitter 只在宽屏出现：窄屏是覆盖式抽屉，拖宽没有意义
+            !narrow && paneVisible && h('div', {
+              role: 'separator',
+              'aria-orientation': 'vertical',
+              'aria-label': '调整 AI 对话面板宽度',
+              'aria-valuemin': Math.round(AGENT_MIN * 100),
+              'aria-valuemax': Math.round(AGENT_MAX * 100),
+              'aria-valuenow': percent,
+              tabIndex: 0,
+              style: dragging ? splitterDragStyle : hovering ? splitterHoverStyle : splitterStyle,
+              onPointerDown: onSplitterPointerDown,
+              onPointerEnter: () => setHovering(true),
+              onPointerLeave: () => setHovering(false),
+              onKeyDown: onSplitterKeyDown,
+            }, (hovering || dragging) ? h('span', { style: splitterGripStyle, 'aria-hidden': 'true' }, '⠿') : null),
             // 原生会话**始终挂载**：卸载会丢掉输入框与草稿状态（宿主明确要求不重挂输入树），
             // 所以隐藏走 display，不卸载组件。
             h('aside', {
@@ -465,21 +486,9 @@
               h('span', null, '点顶栏「AI 对话」调起 DSH 原生会话后，它会固定出现在这一侧。'),
               h('span', null, '没有会话也不影响记录：左侧的资料整理、指标与一图秀照常可用。'),
             )),
-            // splitter 只在宽屏出现：窄屏是覆盖式抽屉，拖宽没有意义
-            !narrow && paneVisible && h('div', {
-              role: 'separator',
-              'aria-orientation': 'vertical',
-              'aria-label': '调整 AI 对话面板宽度',
-              'aria-valuemin': Math.round(AGENT_MIN * 100),
-              'aria-valuemax': Math.round(AGENT_MAX * 100),
-              'aria-valuenow': percent,
-              tabIndex: 0,
-              style: dragging ? splitterDragStyle : hovering ? splitterHoverStyle : splitterStyle,
-              onPointerDown: onSplitterPointerDown,
-              onPointerEnter: () => setHovering(true),
-              onPointerLeave: () => setHovering(false),
-              onKeyDown: onSplitterKeyDown,
-            }, (hovering || dragging) ? h('span', { style: splitterGripStyle, 'aria-hidden': 'true' }, '⠿') : null),
+            // 拖动时铺一层透明遮罩：指针一旦掠到业务 iframe 上，指针事件就归子文档，
+            // document 上的监听收不到；遮罩让整个面板都成为我们的命中区。
+            dragging && !narrow && h('div', { 'aria-hidden': 'true', style: dragShieldStyle }),
           ),
         )
       }
