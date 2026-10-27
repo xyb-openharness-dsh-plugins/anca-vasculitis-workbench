@@ -612,7 +612,7 @@ function pageVisitSummary() {
   const items = buildSummaryItems(180);
   const saved = added('summaries');
   return `<div class="notice plain">汇总范围：最近 180 天 · 就诊科室：${esc(p.visit.nextDept || '—')} · ${fmtDate(p.visit.nextDate || '')}（private 已过滤）</div>`
-    + (items.length ? `<div class="card">${items.map((t, i) => `<label style="display:flex;gap:8px;padding:5px 0"><input type="checkbox" data-action="sum-sel" value="${i}"><span>${esc(t)}</span></label>`).join('')}</div>` : `<div class="empty">近 180 天没有可汇总的记录</div>`)
+    + (items.length ? `<div class="card">${items.map((t, i) => `<label class="check-row"><input type="checkbox" data-action="sum-sel" value="${i}"><span>${esc(t)}</span></label>`).join('')}</div>` : `<div class="empty">近 180 天没有可汇总的记录</div>`)
     + section('已生成的摘要', saved.length ? `${saved.length} 份` : '', moreMenu([['手工加一条问题', 'form-question', '']]))
     + (saved.length ? saved.map((s) => `<div class="card" style="margin-bottom:10px"><h3><span class="num">${fmtDate(s.d)}</span> ${pill(s.range, 'blue')}</h3><ol class="tl" style="margin-top:8px">${s.items.map((t) => `<li><div class="what">${esc(t)}</div></li>`).join('')}</ol></div>`).join('') : `<div class="empty">还没有生成过摘要</div>`);
 }
@@ -918,7 +918,7 @@ function renderProfileChip() {
   const chip = $('#actor-chip');
   if (chip) {
     chip.setAttribute('aria-pressed', String(state.actor === 'FAMILY'));
-    chip.textContent = state.actor === 'FAMILY' ? '当前：家属代记（点此切回本人）' : '替家人记';
+    chip.textContent = state.actor === 'FAMILY' ? '切回本人' : '替家人记';
   }
 }
 function writeCandidate(c) {
@@ -954,7 +954,7 @@ function openSummaryCommit() {
   const items = buildSummaryItems(180);
   if (!items.length) { toast('近 180 天没有可汇总的记录'); return; }
   openModal('生成复诊摘要（候选）', `<div class="notice plain">逐条勾选要带去复诊的内容；不生成结论。</div>` +
-    items.map((t, i) => `<label style="display:flex;gap:8px;padding:5px 0"><input type="checkbox" data-action="sum-sel" value="${i}"><span>${esc(t)}</span></label>`).join(''),
+    items.map((t, i) => `<label class="check-row"><input type="checkbox" data-action="sum-sel" value="${i}"><span>${esc(t)}</span></label>`).join(''),
     btn('取消', 'close', '') + btn('生成摘要', 'sum-commit', 'primary'));
 }
 
@@ -982,7 +982,7 @@ function saveLab() {
 function formEvent() {
   formDialog('记一次事件', [
     field('日期', `<input id="f-date" type="date" value="${TODAY}">`, true),
-    field('受累器官（可多选）', `<div style="display:flex;gap:10px;flex-wrap:wrap">${['肾脏', '耳鼻喉', '肺', '关节', '皮肤', '神经'].map((o) => `<label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" class="f-organ" value="${o}" style="width:auto">${o}</label>`).join('')}</div>`, true),
+    field('受累器官（可多选）', `<div style="display:flex;gap:10px;flex-wrap:wrap">${['肾脏', '耳鼻喉', '肺', '关节', '皮肤', '神经'].map((o) => `<label class="check-row" style="border:0;padding:2px 0"><input type="checkbox" class="f-organ" value="${o}">${o}</label>`).join('')}</div>`, true),
     field('当时症状', `<textarea id="f-sym" rows="2"></textarea>`, true),
     field('确认依据原文', `<textarea id="f-confirm" rows="2" placeholder="医生记录/检验/影像/病理的原句；还没有可留空"></textarea>`, false, '还没有依据时留空（显式 NULL），不写"疑似"'),
     field('就诊科室', `<input id="f-dept" placeholder="如：风湿科 / 肾内科">`, false)
