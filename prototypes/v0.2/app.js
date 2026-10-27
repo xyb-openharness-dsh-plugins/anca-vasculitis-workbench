@@ -426,7 +426,7 @@ function statusCard() {
       <div class="sc-head"><span class="eyebrow">状态卡 · 待初始化</span></div>
       <p class="sc-empty">还没有可用于计算天数的锚点日（确诊日）。</p>
       <p class="hint">在「病情整理 → 病情档案」里补确診日期与当前方案原文，本卡自动按天派生。</p>
-      <div class="card-actions">${btn('去补档案', 'go', 'primary', 'data-page="records" data-sub="profile"')}${btn('疾病概要：ANCA 相关血管炎是什么？', 'primer-open', '')}</div>
+      <div class="card-actions">${btn('去补档案', 'go', 'primary', 'data-page="records" data-sub="profile"')}${btn('疾病概要：ANCA 相关血管炎是什么？', 'primer-open', '', 'data-primer-open aria-haspopup="dialog"')}</div>
     </div>`;
   }
   const headTxt = toNext !== null && toNext >= 0
@@ -446,7 +446,7 @@ function statusCard() {
     <div class="sc-days"><b class="num">第 ${days} 天</b><span>自确诊日 ${esc(fmtDate(anchor))} 起</span></div>
     <p class="sc-line">${statusLine}</p>
     <p class="sc-line">${nextLine}</p>
-    <div class="card-actions">${mainBtn}${btn('疾病概要：ANCA 相关血管炎是什么？', 'primer-open', '')}</div>
+    <div class="card-actions">${mainBtn}${btn('疾病概要：ANCA 相关血管炎是什么？', 'primer-open', '', 'data-primer-open aria-haspopup="dialog"')}</div>
   </div>`;
 }
 
@@ -896,10 +896,10 @@ document.addEventListener('click', (e) => {
     'more-close': () => {},
     'chart-sel': () => { /* change 事件处理 */ },
     'chart-range': () => { state.chartRange = t.dataset.range; render(); },
-    'primer-open': (ev) => {
-      /* starter primer.js 监听 [data-primer-open]；若尚未挂载（脚本未加载），提示而不是静默 */
-      const native = document.querySelector('[data-primer-open]');
-      if (!native) { ev.preventDefault(); toast('疾病概要模块未加载（primer.js）'); }
+    'primer-open': () => {
+      /* primer.js 只监听 [data-primer-open] 的点击；此处直接走它暴露的 API，避免依赖属性绑定 */
+      if (window.DiseasePrimer?.open) { window.DiseasePrimer.open(t); return; }
+      toast('疾病概要模块未加载（primer.js）');
     },
     'cand-accept': () => { const row = t.closest('.cand'); row.classList.add('accepted'); row.classList.remove('rejected'); },
     'cand-reject': () => { const row = t.closest('.cand'); row.classList.add('rejected'); row.classList.remove('accepted'); toast('已拒收：未写入任何数据（零副作用）'); },
