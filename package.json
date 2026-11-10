@@ -1,6 +1,6 @@
 {
   "name": "@xyb-community/anca-vasculitis-workbench",
-  "version": "0.2.12",
+  "version": "0.2.13",
   "description": "面向 ANCA 相关血管炎患者与照护者的本机病程资料工作台：ANCA 滴度（PR3/MPO）时间线、复发事件档案、免疫抑制用药版本链、激素副作用分节轨道",
   "private": true,
   "type": "module",
@@ -24,7 +24,7 @@
     "NOTICE.md"
   ],
   "scripts": {
-    "check": "node --check dsh/index.js && node --check lib/client.js && node scripts/build-client.mjs --check && node scripts/check-workbench-package.mjs . && node scripts/check-host-contract.mjs && node scripts/smoke-activate.mjs && node scripts/check-probe-coverage.mjs && node scripts/check-version-literal.mjs && node scripts/check-static-refs.mjs && node scripts/check-choice-limit.mjs && node scripts/check-schema-freeze.mjs && node scripts/check-write-schema.mjs && node scripts/check-wording.mjs . && node --test test/*.test.mjs",
+    "check": "node --check dsh/index.js && node --check lib/client.js && node scripts/build-client.mjs --check && node scripts/check-workbench-package.mjs . && node scripts/check-host-contract.mjs && node scripts/smoke-activate.mjs && node scripts/check-probe-coverage.mjs && node scripts/check-version-literal.mjs && node scripts/check-static-refs.mjs && node scripts/check-choice-limit.mjs && node scripts/check-schema-freeze.mjs && node scripts/check-write-schema.mjs && node scripts/check-wording.mjs . && node --test test/*.test.mjs && node scripts/check-agent-pane-contract.mjs .",
     "check:version-literal": "node scripts/check-version-literal.mjs",
     "check:host": "node scripts/check-host-contract.mjs",
     "check:static-refs": "node scripts/check-static-refs.mjs",
